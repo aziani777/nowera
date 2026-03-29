@@ -352,7 +352,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="logo">AZ <span>Todo</span></div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn-sync" id="syncBtn" title="Sync with cloud"><span class="sync-dot"></span> Sync</button>
-      <button class="btn-icon" id="cfgBtn" title="Cloud settings">⚙️</button>
       <button class="btn-icon" id="themeBtn">🌙</button>
     </div>
   </header>
@@ -370,33 +369,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
-
-<!-- Config Modal -->
-<div class="overlay" id="cfgOverlay">
-  <div class="modal" style="max-width:460px;">
-    <div class="modal-title">☁️ Cloud sync — JSONBin</div>
-    <p class="cfg-desc">Tes données seront stockées sur <a class="cfg-link" href="https://jsonbin.io" target="_blank">jsonbin.io</a> et accessibles depuis n'importe quel appareil via l'URL Vercel.</p>
-    <ol class="cfg-steps">
-      <li>Crée un compte gratuit sur <a class="cfg-link" href="https://jsonbin.io" target="_blank">jsonbin.io</a></li>
-      <li>Copie ta <strong>Master Key</strong> (API Key)</li>
-      <li>Clique <strong>Create Bin</strong> → copie le <strong>Bin ID</strong></li>
-    </ol>
-    <div class="form-group">
-      <label class="form-label">API Key (Master Key)</label>
-      <input class="form-input" id="cfgApiKey" type="password" placeholder="$2a$10$…" />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Bin ID</label>
-      <input class="form-input" id="cfgBinId" type="text" placeholder="64a3f2…" />
-    </div>
-    <div class="cfg-status" id="cfgStatus"></div>
-    <div class="modal-actions" style="margin-top:16px;">
-      <button class="btn-cancel" id="cfgCancel">Fermer</button>
-      <button class="btn-confirm" id="cfgTest" style="flex:1;">Tester la connexion</button>
-      <button class="btn-confirm" id="cfgSave" style="flex:1;background:var(--success);">Enregistrer</button>
-    </div>
-  </div>
-</div>
 
 <!-- Edit Modal -->
 <div class="overlay" id="editOverlay">
@@ -486,9 +458,8 @@ function load(){
 let _pushTimer=null;
 function save(){
   localStorage.setItem('aztodo_v4',JSON.stringify({theme:S.theme,todos:S.todos,meetings:S.meetings,filter:S.filter}));
-  /* debounced cloud push — waits 1.5s after last change */
   clearTimeout(_pushTimer);
-  _pushTimer=setTimeout(()=>{const {key,bin}=cfgGet();if(key&&bin)cloudPush();},1500);
+  _pushTimer=setTimeout(()=>cloudPush(),1500);
 }
 load();
 
@@ -499,16 +470,7 @@ function toast(msg,dur=2800){
   setTimeout(()=>el.classList.remove('show'),dur);
 }
 
-/* ── JSONBIN SYNC ── */
-const BIN_URL='https://api.jsonbin.io/v3/b';
-
-function cfgGet(){
-  return {
-    key: localStorage.getItem('aztodo_binKey')||'',
-    bin: localStorage.getItem('aztodo_binId')||'',
-  };
-}
-
+/* ── CLOUD SYNC via /api/sync proxy (keys are server-side on Vercel) ── */
 function syncStatus(cls){
   const btn=document.getElementById('syncBtn');
   if(!btn)return;
@@ -516,33 +478,32 @@ function syncStatus(cls){
 }
 
 async function cloudPush(){
-  const {key,bin}=cfgGet();
-  if(!key||!bin)return false;
   syncStatus('syncing');
   try{
     const data={todos:S.todos,meetings:S.meetings,theme:S.theme,filter:S.filter};
-    const r=await fetch(`${BIN_URL}/${bin}`,{
+    const r=await fetch('/api/sync',{
       method:'PUT',
-      headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Versioning':'false'},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify(data)
     });
     if(!r.ok)throw new Error(r.status);
-    syncStatus('ok'); toast('✓ Synced to cloud');
+    syncStatus('ok'); toast('✓ Synced');
     return true;
-  }catch(e){syncStatus('err');toast('⚠ Sync failed: '+e.message);return false;}
+  }catch(e){
+    syncStatus('err');
+    /* if running locally (no server), silently skip */
+    if(e.message==='Failed to fetch'||e.message==='404')syncStatus('');
+    else toast('⚠ Sync failed: '+e.message);
+    return false;
+  }
 }
 
 async function cloudPull(){
-  const {key,bin}=cfgGet();
-  if(!key||!bin)return false;
   syncStatus('syncing');
   try{
-    const r=await fetch(`${BIN_URL}/${bin}/latest`,{
-      headers:{'X-Master-Key':key}
-    });
+    const r=await fetch('/api/sync');
     if(!r.ok)throw new Error(r.status);
-    const j=await r.json();
-    const d=j.record||{};
+    const d=await r.json();
     if(d.todos)S.todos=d.todos;
     if(d.meetings)S.meetings=d.meetings;
     if(d.theme)S.theme=d.theme;
@@ -550,64 +511,18 @@ async function cloudPull(){
     save(); syncStatus('ok'); toast('✓ Loaded from cloud');
     applyTheme(); render();
     return true;
-  }catch(e){syncStatus('err');toast('⚠ Pull failed: '+e.message);return false;}
+  }catch(e){
+    /* 404 = running locally without server, just ignore */
+    syncStatus('');
+    return false;
+  }
 }
 
-/* Auto-pull on load if configured */
-window.addEventListener('load',()=>{
-  const {key,bin}=cfgGet();
-  if(key&&bin) cloudPull();
-  else syncStatus('');
-});
+/* Auto-pull on page load */
+window.addEventListener('load',()=>{ cloudPull(); });
 
-/* Sync button → push then pull to confirm */
-document.getElementById('syncBtn').addEventListener('click',async()=>{
-  const {key,bin}=cfgGet();
-  if(!key||!bin){document.getElementById('cfgOverlay').classList.add('open');return;}
-  await cloudPush();
-});
-
-/* Config button */
-document.getElementById('cfgBtn').addEventListener('click',()=>{
-  const {key,bin}=cfgGet();
-  document.getElementById('cfgApiKey').value=key;
-  document.getElementById('cfgBinId').value=bin;
-  document.getElementById('cfgStatus').className='cfg-status';
-  document.getElementById('cfgStatus').textContent='';
-  document.getElementById('cfgOverlay').classList.add('open');
-});
-document.getElementById('cfgCancel').addEventListener('click',()=>document.getElementById('cfgOverlay').classList.remove('open'));
-document.getElementById('cfgOverlay').addEventListener('click',e=>{if(e.target.id==='cfgOverlay')document.getElementById('cfgOverlay').classList.remove('open');});
-
-document.getElementById('cfgSave').addEventListener('click',()=>{
-  const k=document.getElementById('cfgApiKey').value.trim();
-  const b=document.getElementById('cfgBinId').value.trim();
-  if(!k||!b){showCfgStatus('err','Remplis les deux champs.');return;}
-  localStorage.setItem('aztodo_binKey',k);
-  localStorage.setItem('aztodo_binId',b);
-  document.getElementById('cfgOverlay').classList.remove('open');
-  toast('✓ Config sauvegardée');
-  syncStatus('');
-});
-
-document.getElementById('cfgTest').addEventListener('click',async()=>{
-  const k=document.getElementById('cfgApiKey').value.trim();
-  const b=document.getElementById('cfgBinId').value.trim();
-  if(!k||!b){showCfgStatus('err','Remplis les deux champs.');return;}
-  showCfgStatus('','Test en cours…');
-  try{
-    const r=await fetch(`${BIN_URL}/${b}/latest`,{headers:{'X-Master-Key':k}});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    showCfgStatus('ok','✓ Connexion OK ! Bin accessible.');
-  }catch(e){showCfgStatus('err','✕ Erreur : '+e.message);}
-});
-
-function showCfgStatus(cls,msg){
-  const el=document.getElementById('cfgStatus');
-  el.className='cfg-status'+(cls?' '+cls:'');
-  el.textContent=msg;
-  el.style.display='block';
-}
+/* Manual sync button */
+document.getElementById('syncBtn').addEventListener('click',async()=>{ await cloudPush(); });
 
 /* theme */
 function applyTheme(){document.documentElement.setAttribute('data-theme',S.theme);document.getElementById('themeBtn').textContent=S.theme==='dark'?'☀️':'🌙';}
