@@ -68,21 +68,76 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* CONTENT */
 .content-area{flex:1;padding:16px;width:100%;}
 .content-area.week-view{max-width:100%!important;padding:16px 20px;}
+.content-area.all-view{max-width:100%!important;padding:16px 20px;}
 @media(min-width:900px){
-  .content-area{padding:24px 32px;max-width:65%;}
+  .content-area{padding:20px 24px;max-width:100%;}
   .content-area.week-view{padding:20px 24px;}
-  .todos-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;align-items:start;}
   .cal-layout{display:grid;grid-template-columns:420px 1fr;gap:28px;align-items:start;}
   .week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
 }
 @media(min-width:1280px){
-  .todos-grid{grid-template-columns:repeat(4,1fr);}
   .cal-layout{grid-template-columns:480px 1fr;}
-  .content-area{padding:28px 48px;max-width:62%;}
-  .content-area.week-view{padding:20px 28px;}
+  .content-area.single-ws{max-width:600px;}
   .week-grid{gap:10px;}
 }
-@media(min-width:1600px){.content-area{padding:32px 60px;max-width:60%;}}
+@media(min-width:1600px){.content-area.single-ws{max-width:680px;}}
+
+/* TODOS GRID — horizontal scroll single row */
+.todos-grid{
+  display:flex;
+  flex-direction:row;
+  gap:16px;
+  overflow-x:auto;
+  align-items:start;
+  padding-bottom:12px;
+  scrollbar-width:thin;
+}
+.todos-grid::-webkit-scrollbar{height:5px;}
+.todos-grid::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+.todos-grid .section-block{
+  flex:0 0 260px;
+  min-width:260px;
+  margin-bottom:0;
+}
+@media(min-width:1280px){
+  .todos-grid .section-block{flex:0 0 280px;min-width:280px;}
+}
+
+/* TOOLS DROPDOWN */
+.tools-wrap{position:relative;}
+.tools-menu{position:absolute;top:38px;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:6px;min-width:180px;z-index:400;animation:fadeIn .12s ease;display:none;}
+.tools-menu.open{display:block;}
+.tools-item{padding:9px 14px;border-radius:8px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--text);transition:background .1s;white-space:nowrap;border:none;background:none;width:100%;font-family:inherit;text-align:left;}
+.tools-item:hover{background:var(--surface2);}
+.tools-sep{height:1px;background:var(--border);margin:4px 6px;}
+
+/* POMODORO */
+.pomo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;}
+.pomo-box{background:var(--surface);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);width:100%;max-width:340px;padding:28px 24px;text-align:center;animation:fadeIn .2s ease;}
+.pomo-title{font-size:14px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.pomo-task{font-size:14px;color:var(--text2);margin-bottom:20px;min-height:20px;}
+.pomo-ring{position:relative;width:160px;height:160px;margin:0 auto 20px;}
+.pomo-svg{transform:rotate(-90deg);}
+.pomo-track{fill:none;stroke:var(--surface2);stroke-width:10;}
+.pomo-progress{fill:none;stroke:var(--accent);stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset .5s linear;}
+.pomo-time{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text);}
+.pomo-mode-row{display:flex;gap:8px;justify-content:center;margin-bottom:20px;}
+.pomo-mode-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.pomo-mode-btn.active{background:var(--accent);color:white;border-color:var(--accent);}
+.pomo-controls{display:flex;gap:10px;justify-content:center;margin-bottom:16px;}
+.pomo-btn{width:44px;height:44px;border-radius:50%;border:none;font-size:18px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;}
+.pomo-btn.play{background:var(--accent);color:white;}
+.pomo-btn.play:hover{opacity:.88;}
+.pomo-btn.reset{background:var(--surface2);color:var(--text2);}
+.pomo-btn.reset:hover{background:var(--surface3);}
+.pomo-task-label{font-size:12px;color:var(--text3);margin-bottom:6px;}
+.pomo-task-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:13px;color:var(--text);outline:none;margin-bottom:16px;}
+.pomo-close{background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;text-decoration:underline;}
+.pomo-sessions{font-size:12px;color:var(--text3);margin-top:8px;}
+
+/* DRAG OVER SECTION (cross-space) */
+.section-block.drop-target{outline:2px dashed var(--accent);outline-offset:-2px;}
+
 
 /* TAGS */
 .tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:600;}
@@ -418,8 +473,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="logo">AZ <span>Todo</span></div>
     <div class="header-right">
       <button class="btn-sync" id="syncBtn"><span class="sync-dot"></span> Sync</button>
-      <button class="btn-icon" id="pdfBtn" title="Export PDF">⬇</button>
-      <button class="btn-icon" id="themeBtn" title="Toggle theme">🌙</button>
+      <div class="tools-wrap">
+        <button class="btn-icon" id="toolsBtn" title="Tools">⚙</button>
+        <div class="tools-menu" id="toolsMenu">
+          <button class="tools-item" id="toolPomodoro">🍅 Pomodoro timer</button>
+          <button class="tools-item" id="toolSpaces">🗂 Manage spaces</button>
+          <div class="tools-sep"></div>
+          <button class="tools-item" id="toolPdf">⬇ Export PDF</button>
+          <div class="tools-sep"></div>
+          <button class="tools-item" id="toolTheme">🌗 Toggle theme</button>
+        </div>
+      </div>
     </div>
   </header>
   <nav class="nav">
@@ -521,6 +585,36 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <!-- Daily Digest -->
 <div id="digestOverlay" style="display:none" class="digest-overlay">
   <div class="digest-box" id="digestBox"></div>
+</div>
+
+<!-- Pomodoro -->
+<div id="pomoOverlay" style="display:none" class="pomo-overlay">
+  <div class="pomo-box">
+    <div class="pomo-title">Pomodoro</div>
+    <div class="pomo-task" id="pomoTask">No task selected</div>
+    <div class="pomo-ring">
+      <svg class="pomo-svg" width="160" height="160" viewBox="0 0 160 160">
+        <circle class="pomo-track" cx="80" cy="80" r="70"/>
+        <circle class="pomo-progress" id="pomoCircle" cx="80" cy="80" r="70" stroke-dasharray="439.8" stroke-dashoffset="0"/>
+      </svg>
+      <div class="pomo-time" id="pomoTime">25:00</div>
+    </div>
+    <div class="pomo-mode-row">
+      <button class="pomo-mode-btn active" data-pmode="work">Focus 25</button>
+      <button class="pomo-mode-btn" data-pmode="short">Break 5</button>
+      <button class="pomo-mode-btn" data-pmode="long">Long 15</button>
+    </div>
+    <div class="pomo-controls">
+      <button class="pomo-btn reset" id="pomoReset">↺</button>
+      <button class="pomo-btn play" id="pomoPlay">▶</button>
+    </div>
+    <div class="pomo-task-label">Link to a task (optional)</div>
+    <select class="pomo-task-select" id="pomoTaskSelect">
+      <option value="">— No task —</option>
+    </select>
+    <div class="pomo-sessions" id="pomoSessions">Sessions today: 0</div>
+    <button class="pomo-close" id="pomoClose">Close</button>
+  </div>
 </div>
 
 <script>
@@ -679,14 +773,43 @@ function applyTheme(){
   let t=S.theme;
   if(t==='auto') t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
   document.documentElement.setAttribute('data-theme',t);
-  document.getElementById('themeBtn').textContent=S.theme==='auto'?'🌗':t==='dark'?'☀️':'🌙';
+  const lbl=S.theme==='auto'?'🌗 Auto':t==='dark'?'☀️ Light':'🌙 Dark';
+  const ti=document.getElementById('toolTheme');
+  if(ti) ti.textContent=lbl;
 }
 applyTheme();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
-document.getElementById('themeBtn').addEventListener('click',()=>{
+
+/* ══ TOOLS DROPDOWN ══ */
+document.getElementById('toolsBtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  document.getElementById('toolsMenu').classList.toggle('open');
+});
+document.addEventListener('click',()=>document.getElementById('toolsMenu')?.classList.remove('open'));
+
+document.getElementById('toolTheme').addEventListener('click',()=>{
   S.theme=S.theme==='light'?'dark':S.theme==='dark'?'auto':'light';
   applyTheme(); save();
+  document.getElementById('toolsMenu').classList.remove('open');
 });
+document.getElementById('toolPdf').addEventListener('click',()=>{
+  window.print();
+  document.getElementById('toolsMenu').classList.remove('open');
+});
+document.getElementById('toolSpaces').addEventListener('click',()=>{
+  S.tab='workspaces';
+  document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
+  document.querySelector('[data-tab="workspaces"]')?.classList.add('active');
+  document.getElementById('toolsMenu').classList.remove('open');
+  render();
+});
+document.getElementById('toolPomodoro').addEventListener('click',()=>{
+  document.getElementById('toolsMenu').classList.remove('open');
+  openPomodoro();
+});
+
+/* ══ PDF EXPORT ══ */
+// (handled via toolPdf above)
 
 /* ══ TABS ══ */
 function initTabs(){
@@ -752,11 +875,6 @@ async function cloudPull(){
 }
 window.addEventListener('load',()=>cloudPull());
 document.getElementById('syncBtn').addEventListener('click',()=>cloudPush());
-
-/* ══ PDF EXPORT ══ */
-document.getElementById('pdfBtn').addEventListener('click',()=>{
-  window.print();
-});
 
 /* ══ NOTIFICATIONS ══ */
 let notifEnabled=localStorage.getItem('aztodo_notif')==='true';
@@ -851,19 +969,102 @@ function showDigest(){
 }
 setTimeout(showDigest,800);
 
+/* ══ POMODORO ══ */
+const POMO_MODES={work:25*60,short:5*60,long:15*60};
+let pomoState={mode:'work',remaining:25*60,running:false,interval:null,sessions:parseInt(localStorage.getItem('aztodo_pomo_sessions_'+todayStr())||'0')};
+const CIRC=2*Math.PI*70; // 439.8
+
+function openPomodoro(){
+  // populate task select
+  const sel=document.getElementById('pomoTaskSelect');
+  sel.innerHTML=`<option value="">— No task —</option>`+
+    S.todos.filter(t=>!t.done).map(t=>`<option value="${t.id}">${esc(t.text.slice(0,50))}</option>`).join('');
+  updatePomoDisplay();
+  updatePomoSessions();
+  document.getElementById('pomoOverlay').style.display='flex';
+}
+function closePomodoro(){document.getElementById('pomoOverlay').style.display='none';}
+document.getElementById('pomoClose').addEventListener('click',closePomodoro);
+document.getElementById('pomoOverlay').addEventListener('click',e=>{if(e.target.id==='pomoOverlay')closePomodoro();});
+
+function updatePomoDisplay(){
+  const m=Math.floor(pomoState.remaining/60);
+  const s=pomoState.remaining%60;
+  document.getElementById('pomoTime').textContent=`${p2(m)}:${p2(s)}`;
+  // ring
+  const frac=pomoState.remaining/POMO_MODES[pomoState.mode];
+  document.getElementById('pomoCircle').style.strokeDashoffset=CIRC*(1-frac);
+  // color by mode
+  const colors={work:'var(--accent)',short:'var(--success)',long:'var(--purple)'};
+  document.getElementById('pomoCircle').style.stroke=colors[pomoState.mode];
+  // play button
+  document.getElementById('pomoPlay').textContent=pomoState.running?'⏸':'▶';
+}
+function updatePomoSessions(){
+  document.getElementById('pomoSessions').textContent=`Sessions today: ${pomoState.sessions}`;
+}
+
+document.querySelectorAll('.pomo-mode-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    pomoStop();
+    pomoState.mode=btn.dataset.pmode;
+    pomoState.remaining=POMO_MODES[pomoState.mode];
+    document.querySelectorAll('.pomo-mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    updatePomoDisplay();
+  });
+});
+
+document.getElementById('pomoPlay').addEventListener('click',()=>{
+  if(pomoState.running) pomoStop();
+  else pomoStart();
+});
+document.getElementById('pomoReset').addEventListener('click',()=>{
+  pomoStop();
+  pomoState.remaining=POMO_MODES[pomoState.mode];
+  updatePomoDisplay();
+});
+
+function pomoStart(){
+  pomoState.running=true;
+  updatePomoDisplay();
+  pomoState.interval=setInterval(()=>{
+    pomoState.remaining--;
+    updatePomoDisplay();
+    if(pomoState.remaining<=0){
+      pomoStop();
+      if(pomoState.mode==='work'){
+        pomoState.sessions++;
+        localStorage.setItem('aztodo_pomo_sessions_'+todayStr(),pomoState.sessions);
+        updatePomoSessions();
+        if(Notification.permission==='granted') new Notification('🍅 Pomodoro done!',{body:'Time for a break!'});
+        toast('🍅 Pomodoro complete! Take a break.');
+      } else {
+        if(Notification.permission==='granted') new Notification('⏰ Break over!',{body:'Back to work!'});
+        toast('Break over — back to focus!');
+      }
+    }
+  },1000);
+}
+function pomoStop(){
+  clearInterval(pomoState.interval);
+  pomoState.running=false;
+  updatePomoDisplay();
+}
+
 /* ══ RENDER ══ */
 function render(){
   closeCtx(); closeMiniCal();
   const ca=document.getElementById('contentArea');
-  ca.classList.remove('week-view'); // reset each render
+  ca.classList.remove('week-view','all-view','single-ws');
   if(S.tab==='calendar') renderCalendar(ca);
   else if(S.tab==='dashboard') renderDashboard(ca);
   else if(S.tab==='week') renderWeek(ca);
   else if(S.tab==='workspaces') renderWorkspaces(ca);
-  else if(S.tab==='all') renderTodos(ca);
+  else if(S.tab==='all'){ca.classList.add('all-view');renderTodos(ca);}
   else {
     const ws=(S.workspaces||[]).find(w=>w.id===S.tab);
-    if(ws) renderTodos(ca);
+    if(ws){ca.classList.add('single-ws');renderTodos(ca);}
     else renderDashboard(ca);
   }
 }
@@ -1111,7 +1312,7 @@ function buildSection(sec){
   if(S.filter==='done')   todos=todos.filter(t=>t.done);
   const activeN=S.todos.filter(t=>t.section===sec&&!t.done).length;
 
-  let h=`<div class="section-block ${info.bar}">
+  let h=`<div class="section-block ${info.bar}" data-sec="${sec}">
     <div class="section-head">
       <span class="tag ${info.tag}"><span class="section-label">${info.label}</span></span>
       <span class="count-badge">${activeN}</span>
@@ -1180,20 +1381,38 @@ function bindTodoEvents(ca,secs){
 
   let dragId=null,didDrag=false;
   ca.querySelectorAll('.todo-item[draggable]').forEach(el=>{
-    // drag
     el.addEventListener('dragstart',e=>{dragId=el.dataset.id;didDrag=false;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragId);setTimeout(()=>el.classList.add('dragging'),0);});
     el.addEventListener('drag',()=>{didDrag=true;});
-    el.addEventListener('dragend',()=>{el.classList.remove('dragging');ca.querySelectorAll('.todo-item').forEach(x=>{x.classList.remove('drag-over-top','drag-over-bot');});dragId=null;});
-    el.addEventListener('dragover',e=>{e.preventDefault();if(!dragId||el.dataset.id===dragId)return;const rect=el.getBoundingClientRect();ca.querySelectorAll('.todo-item').forEach(x=>{x.classList.remove('drag-over-top','drag-over-bot');});el.classList.add(e.clientY<rect.top+rect.height/2?'drag-over-top':'drag-over-bot');});
+    el.addEventListener('dragend',()=>{
+      el.classList.remove('dragging');
+      ca.querySelectorAll('.todo-item').forEach(x=>{x.classList.remove('drag-over-top','drag-over-bot');});
+      ca.querySelectorAll('.section-block').forEach(x=>x.classList.remove('drop-target'));
+      dragId=null;
+    });
+    el.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(!dragId||el.dataset.id===dragId)return;
+      const rect=el.getBoundingClientRect();
+      ca.querySelectorAll('.todo-item').forEach(x=>{x.classList.remove('drag-over-top','drag-over-bot');});
+      el.classList.add(e.clientY<rect.top+rect.height/2?'drag-over-top':'drag-over-bot');
+    });
     el.addEventListener('dragleave',()=>{el.classList.remove('drag-over-top','drag-over-bot');});
     el.addEventListener('drop',e=>{
-      e.preventDefault();el.classList.remove('drag-over-top','drag-over-bot');
+      e.preventDefault();
+      el.classList.remove('drag-over-top','drag-over-bot');
       if(!dragId||el.dataset.id===dragId)return;
-      const fromSec=ca.querySelector(`.todo-item[data-id="${dragId}"]`)?.dataset.sec;
-      if(fromSec!==el.dataset.sec)return;
       const fi=S.todos.findIndex(x=>x.id===dragId);
+      if(fi<0)return;
+      const targetSec=el.dataset.sec;
+      const fromSec=S.todos[fi].section;
+      // cross-space: just move to new section, append at end
+      if(fromSec!==targetSec){
+        S.todos[fi].section=targetSec;
+        save();render();return;
+      }
+      // same section: reorder
       let ti=S.todos.findIndex(x=>x.id===el.dataset.id);
-      if(fi<0||ti<0)return;
+      if(ti<0)return;
       const rect=el.getBoundingClientRect();
       const after=e.clientY>=rect.top+rect.height/2;
       const[moved]=S.todos.splice(fi,1);
@@ -1276,6 +1495,31 @@ function bindTodoEvents(ca,secs){
     inp.addEventListener('keydown',e=>{if(e.key==='Enter')doSave();if(e.key==='Escape')doCancel();});
     document.getElementById('isave_'+sec)?.addEventListener('click',doSave);
     document.getElementById('icancel_'+sec)?.addEventListener('click',doCancel);
+  });
+
+  // Section-block drop targets (for moving to empty sections or header drop)
+  ca.querySelectorAll('.section-block[data-sec]').forEach(block=>{
+    block.addEventListener('dragover',e=>{
+      if(!dragId)return;
+      e.preventDefault();
+      ca.querySelectorAll('.section-block').forEach(b=>b.classList.remove('drop-target'));
+      block.classList.add('drop-target');
+    });
+    block.addEventListener('dragleave',e=>{
+      if(!e.relatedTarget||!block.contains(e.relatedTarget)) block.classList.remove('drop-target');
+    });
+    block.addEventListener('drop',e=>{
+      e.preventDefault();
+      block.classList.remove('drop-target');
+      if(!dragId)return;
+      const targetSec=block.dataset.sec;
+      const fi=S.todos.findIndex(x=>x.id===dragId);
+      if(fi<0)return;
+      if(S.todos[fi].section===targetSec)return; // same sec handled by item drop
+      S.todos[fi].section=targetSec;
+      toast(`→ Moved to ${SECS[targetSec]?.label||targetSec}`);
+      save();render();
+    });
   });
 }
 
