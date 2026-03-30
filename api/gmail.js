@@ -1,3 +1,19 @@
+async function getAccessToken() {
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id:     process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      grant_type:    'refresh_token',
+    }),
+  });
+  const d = await r.json();
+  if (!d.access_token) throw new Error('Failed to get access token: ' + JSON.stringify(d));
+  return d.access_token;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -6,82 +22,104 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_API_KEY) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set in Vercel environment variables.' });
-  }
+  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+  if (!process.env.GOOGLE_CLIENT_ID) return res.status(500).json({ error: 'GOOGLE_CLIENT_ID not set' });
 
   const { workspaces = [], existingTasks = [] } = req.body || {};
-  const workspaceList = workspaces.map(w => w.label).join(', ') || 'Perso, Business';
-  const wsIds = workspaces.map(w => `"${w.id}"`).join(', ');
-  const skipList = existingTasks.slice(0, 20).join(' | ') || 'none';
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // 1 — Get fresh access token
+    const accessToken = await getAccessToken();
+
+    // 2 — Fetch emails from last 48h
+    const since = Math.floor((Date.now() - 48 * 60 * 60 * 1000) / 1000);
+    const listRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=after:${since}&maxResults=25`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const listData = await listRes.json();
+    const messages = listData.messages || [];
+    if (!messages.length) return res.status(200).json({ tasks: [], infos: [] });
+
+    // 3 — Fetch metadata for each email
+    const emailSummaries = await Promise.all(
+      messages.map(async (m) => {
+        const msgRes = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        const msg = await msgRes.json();
+        const headers = msg.payload?.headers || [];
+        const get = (name) => headers.find(h => h.name === name)?.value || '';
+        return {
+          subject: get('Subject'),
+          from: get('From').replace(/<.*>/g, '').trim(),
+          snippet: (msg.snippet || '').slice(0, 200),
+        };
+      })
+    );
+
+    // 4 — Ask Claude to classify
+    const workspaceList = workspaces.map(w => w.label).join(', ') || 'Perso, Business';
+    const wsIds = workspaces.map(w => `"${w.id}"`).join(', ') || '"perso"';
+    const skipList = existingTasks.slice(0, 20).join(' | ') || 'none';
+    const emailBlock = emailSummaries.map((e, i) =>
+      `[${i + 1}] From: ${e.from} | Subject: ${e.subject} | Preview: ${e.snippet}`
+    ).join('\n');
+
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'mcp-client-2025-04-04',
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 3000,
-        mcp_servers: [
-          { type: 'url', url: 'https://gmail.mcp.claude.com/mcp', name: 'gmail' }
-        ],
         messages: [{
           role: 'user',
-          content: `Read the last 48 hours of emails in Gmail. For each email, assess whether it requires action, is just informational, or can be ignored.
+          content: `You are a smart email triage assistant. Classify each email as "task", "info", or "skip".
 
 Available workspaces: ${workspaceList}
-Already imported tasks (skip creating duplicates): ${skipList}
+Already imported (skip duplicates): ${skipList}
 
-Classify each email into one of three types:
+Classification rules:
+- "task" → user needs to DO something: reply, pay, call, schedule, review, sign, send, fix, book...
+- "info" → useful to know but no action: receipt, confirmation, shipped, approved, FYI, status update...
+- "skip" → newsletter, marketing, social, automated alert, spam → exclude from output entirely
 
-1. **"task"** — requires the user to DO something (reply, pay, schedule, call, review, decide, send, book, fix...)
-2. **"info"** — useful to be aware of but no action needed (confirmation, receipt, update, FYI, shipped, approved, status update...)
-3. **"skip"** — newsletters, automated notifications, spam, marketing, social media digests, unsubscribe emails
+Emails:
+${emailBlock}
 
-Return ONLY a JSON array. Each object must have:
-- "type": "task" | "info" | "skip"
-- "subject": the email subject (max 80 chars)
-- "from": sender name or email
-- "summary": one sentence summary of what the email is about (max 100 chars)
+Return ONLY a JSON array. No markdown, no explanation.
 
-If type is "task", also include:
-- "text": action to take (max 60 chars, starts with verb e.g. "Reply to...", "Pay...", "Schedule...")
-- "section": best matching workspace id from: ${wsIds}
-- "priority": "high" | "medium" | "low"
-- "due": YYYY-MM-DD if there is a deadline mentioned, otherwise null
-- "note": sender + subject context (max 80 chars)
+For "task": {"type":"task","subject":"...","from":"...","summary":"one sentence max 100 chars","text":"verb + action max 60 chars","section":one of [${wsIds}],"priority":"high"|"medium"|"low","due":"YYYY-MM-DD or null","note":"context max 80 chars"}
 
-If type is "info", also include:
-- "text": one-line summary of what you should know (max 80 chars)
+For "info": {"type":"info","subject":"...","from":"...","summary":"one sentence max 100 chars","text":"what to know max 80 chars"}
 
-Omit "skip" emails entirely from the output — do not include them.
-
-Return [] if nothing relevant. Return ONLY valid JSON array, no markdown, no explanation.`
-        }]
-      })
+Return [] if nothing relevant.`,
+        }],
+      }),
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: err });
+    if (!claudeRes.ok) {
+      const e = await claudeRes.text();
+      return res.status(claudeRes.status).json({ error: e });
     }
 
-    const data = await response.json();
-    const raw = data.content?.find(c => c.type === 'text')?.text || '[]';
+    const claudeData = await claudeRes.json();
+    const raw = claudeData.content?.find(c => c.type === 'text')?.text || '[]';
     const clean = raw.replace(/```json|```/g, '').trim();
 
     let items = [];
     try { items = JSON.parse(clean); } catch (e) { items = []; }
 
-    const tasks = items.filter(i => i.type === 'task');
-    const infos = items.filter(i => i.type === 'info');
+    return res.status(200).json({
+      tasks: items.filter(i => i.type === 'task'),
+      infos: items.filter(i => i.type === 'info'),
+    });
 
-    return res.status(200).json({ tasks, infos });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
