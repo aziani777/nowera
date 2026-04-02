@@ -44,7 +44,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .shell{display:flex;flex-direction:column;min-height:100vh;}
 
 /* HEADER */
-.header{position:sticky;top:0;z-index:300;background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:52px;flex-shrink:0;}
+.header{position:sticky;top:0;z-index:300;background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:52px;flex-shrink:0;gap:12px;}
 .logo{font-size:18px;font-weight:700;letter-spacing:-.5px;}
 .logo span{color:var(--accent);}
 .header-right{display:flex;gap:6px;align-items:center;}
@@ -503,6 +503,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
   <header class="header">
     <div class="logo" id="logoBtn" style="cursor:pointer;" title="Go to Dashboard">AZ <span>Todo</span></div>
+    <div id="lastSyncLabel" style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;display:none;flex-direction:column;align-items:flex-end;line-height:1.3;">
+      <span id="lastSyncDate"></span>
+      <span id="lastSyncTime" style="color:var(--text2);font-weight:600;"></span>
+    </div>
     <div class="header-right">
       <button class="btn-sync" id="syncBtn"><span class="sync-dot"></span> Sync</button>
       <div class="tools-wrap">
@@ -511,6 +515,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <button class="tools-item" id="toolPomodoro">🍅 Pomodoro timer</button>
           <button class="tools-item" id="toolSpaces">🗂 Manage spaces</button>
           <div class="tools-sep"></div>
+          <button class="tools-item" id="toolBackup">💾 Backups & restore</button>
           <button class="tools-item" id="toolPdf">⬇ Export PDF</button>
           <div class="tools-sep"></div>
           <button class="tools-item" id="toolTheme">🌗 Toggle theme</button>
@@ -610,6 +615,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="confirm-actions">
       <button class="btn-cancel" id="confirmMtgNo" style="flex:1">Cancel</button>
       <button class="btn-confirm-del" id="confirmMtgYes">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Backup & Restore Modal -->
+<div id="backupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);width:100%;max-width:460px;padding:24px;animation:fadeIn .2s ease;max-height:90vh;overflow-y:auto;">
+    <div style="font-size:17px;font-weight:700;margin-bottom:4px;">💾 Backups & Restore</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:20px;">Weekly snapshots saved locally. Up to 4 kept.</div>
+    <div id="backupList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="backupNowBtn" style="flex:1;padding:10px;border-radius:9px;border:none;background:var(--accent);color:white;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">📸 Save backup now</button>
+      <button id="backupCloseBtn" style="padding:10px 18px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:inherit;font-size:14px;cursor:pointer;">Close</button>
     </div>
   </div>
 </div>
@@ -872,11 +890,29 @@ function toast(msg,dur=2800){
 
 /* ══ CLOUD SYNC ══ */
 function syncStatus(cls){const btn=document.getElementById('syncBtn');if(!btn)return;btn.className='btn-sync '+(cls||'');}
+
+function updateSyncLabel(){
+  const ts=localStorage.getItem('aztodo_last_sync');
+  const label=document.getElementById('lastSyncLabel');
+  const dateEl=document.getElementById('lastSyncDate');
+  const timeEl=document.getElementById('lastSyncTime');
+  if(!label||!ts)return;
+  const d=new Date(ts);
+  const dateStr=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const timeStr=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  dateEl.textContent=`Last sync · ${dateStr}`;
+  timeEl.textContent=timeStr;
+  label.style.display='flex';
+}
+
 async function cloudPush(){
   syncStatus('syncing');
   try{
-    const r=await fetch('/api/sync',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({todos:S.todos,meetings:S.meetings,theme:S.theme,filter:S.filter})});
+    const r=await fetch('/api/sync',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({todos:S.todos,meetings:S.meetings,theme:S.theme,filter:S.filter,workspaces:S.workspaces})});
     if(!r.ok)throw new Error(r.status);
+    const now=new Date().toISOString();
+    localStorage.setItem('aztodo_last_sync',now);
+    updateSyncLabel();
     syncStatus('ok'); toast('✓ Synced');
   }catch(e){syncStatus('');} // silent fail when running locally
 }
@@ -914,11 +950,121 @@ async function cloudPull(){
     if(d.filter) S.filter=d.filter;
     if(d.workspaces&&d.workspaces.length>0) S.workspaces=d.workspaces;
     S.todos.forEach(t=>{if(!t.subtasks)t.subtasks=[];if(!t.label)t.label='';if(!t.recur)t.recur='';});
+    const now=new Date().toISOString();
+    localStorage.setItem('aztodo_last_sync',now);
+    updateSyncLabel();
     save(); syncStatus('ok'); applyTheme(); render();
   }catch(e){syncStatus('');}
 }
 window.addEventListener('load',()=>cloudPull());
 document.getElementById('syncBtn').addEventListener('click',()=>cloudPush());
+
+// Also push when user leaves the page
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden') cloudPush();});
+
+/* ══ WEEKLY BACKUP SYSTEM ══ */
+const BACKUP_PREFIX='aztodo_backup_';
+const MAX_BACKUPS=4;
+
+function saveBackup(label){
+  const date=label||todayStr();
+  const key=BACKUP_PREFIX+date;
+  const snap={
+    date, savedAt:new Date().toISOString(),
+    todos:S.todos, meetings:S.meetings,
+    workspaces:S.workspaces, taskCount:S.todos.length
+  };
+  localStorage.setItem(key,JSON.stringify(snap));
+  // Prune old backups — keep only MAX_BACKUPS
+  const keys=getAllBackupKeys().sort();
+  while(keys.length>MAX_BACKUPS){
+    localStorage.removeItem(keys.shift());
+    keys.shift(); // re-read after removal
+  }
+  // Re-prune properly
+  const allKeys=getAllBackupKeys().sort();
+  if(allKeys.length>MAX_BACKUPS){
+    allKeys.slice(0,allKeys.length-MAX_BACKUPS).forEach(k=>localStorage.removeItem(k));
+  }
+}
+
+function getAllBackupKeys(){
+  return Object.keys(localStorage).filter(k=>k.startsWith(BACKUP_PREFIX)).sort();
+}
+
+function getBackups(){
+  return getAllBackupKeys().reverse().map(k=>{
+    try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}
+  }).filter(Boolean);
+}
+
+function checkWeeklyBackup(){
+  const keys=getAllBackupKeys().sort();
+  const lastKey=keys[keys.length-1]||'';
+  const lastDate=lastKey.replace(BACKUP_PREFIX,'');
+  const daysSince=lastDate?Math.floor((Date.now()-new Date(lastDate))/86400000):999;
+  if(daysSince>=7||!lastDate){
+    saveBackup(todayStr());
+  }
+}
+
+function openBackupModal(){
+  const overlay=document.getElementById('backupOverlay');
+  overlay.style.display='flex';
+  renderBackupList();
+}
+
+function renderBackupList(){
+  const list=document.getElementById('backupList');
+  const backups=getBackups();
+  if(!backups.length){
+    list.innerHTML=`<div style="font-size:13px;color:var(--text3);padding:12px 0;">No backups yet. Click "Save backup now" to create one.</div>`;
+    return;
+  }
+  list.innerHTML=backups.map((b,i)=>`
+    <div style="background:var(--surface2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:600;">${fmtDate(b.date)} ${i===0?'<span style="font-size:10px;background:var(--success-soft);color:var(--success);padding:1px 7px;border-radius:10px;font-weight:700;">Latest</span>':''}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px;">${b.taskCount} tasks · Saved ${new Date(b.savedAt).toLocaleString()}</div>
+      </div>
+      <button data-bdate="${b.date}" class="restore-btn" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">Restore</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('.restore-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const date=btn.dataset.bdate;
+      if(!confirm(`Restore backup from ${fmtDate(date)}? This will replace your current ${S.todos.length} tasks with ${getBackups().find(b=>b.date===date)?.taskCount} tasks from that backup.`))return;
+      const snap=getBackups().find(b=>b.date===date);
+      if(!snap)return;
+      // Save current state as emergency backup before restoring
+      saveBackup('pre-restore-'+todayStr());
+      S.todos=snap.todos||[];
+      S.meetings=snap.meetings||[];
+      if(snap.workspaces?.length) S.workspaces=snap.workspaces;
+      save();
+      SECS=getSECS(); rebuildNav();
+      document.getElementById('backupOverlay').style.display='none';
+      render();
+      toast(`✓ Restored ${S.todos.length} tasks from ${fmtDate(date)}`);
+    });
+  });
+}
+
+document.getElementById('backupNowBtn').addEventListener('click',()=>{
+  saveBackup(todayStr());
+  renderBackupList();
+  toast('💾 Backup saved');
+});
+document.getElementById('backupCloseBtn').addEventListener('click',()=>{document.getElementById('backupOverlay').style.display='none';});
+document.getElementById('backupOverlay').addEventListener('click',e=>{if(e.target.id==='backupOverlay')document.getElementById('backupOverlay').style.display='none';});
+
+document.getElementById('toolBackup').addEventListener('click',()=>{
+  document.getElementById('toolsMenu').classList.remove('open');
+  openBackupModal();
+});
+
+// Run weekly backup check on load
+setTimeout(checkWeeklyBackup, 2000);
 
 /* ══ NOTIFICATIONS ══ */
 let notifEnabled=localStorage.getItem('aztodo_notif')==='true';
@@ -2242,6 +2388,7 @@ function renderCalendar(ca){
 }
 
 /* ══ INIT ══ */
+updateSyncLabel(); // show last sync time from localStorage immediately
 render();
 </script>
 </body>
