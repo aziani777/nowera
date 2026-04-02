@@ -135,6 +135,38 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .pomo-close{background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;text-decoration:underline;}
 .pomo-sessions{font-size:12px;color:var(--text3);margin-top:8px;}
 
+/* VIEW TOGGLE */
+.view-toggle{display:flex;gap:3px;background:var(--surface2);border-radius:8px;padding:3px;}
+.view-btn{padding:4px 10px;border-radius:6px;border:none;background:none;color:var(--text3);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;}
+.view-btn.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow);}
+
+/* LIST VIEW (All tab) */
+.list-view-table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);}
+.list-view-table thead th{padding:9px 14px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;text-align:left;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap;}
+.list-view-table tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+.list-view-table tbody tr:last-child{border-bottom:none;}
+.list-view-table tbody tr:hover{background:var(--surface2);}
+.list-view-table tbody tr.done-row{opacity:.5;}
+.list-view-table tbody tr.done-row .lv-text{text-decoration:line-through;color:var(--text3);}
+.list-view-table td{padding:9px 14px;font-size:13px;vertical-align:middle;}
+.lv-text{font-weight:500;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lv-ws-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0;}
+
+/* KANBAN CARDS (workspace kanban view) */
+.kanban-columns{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;align-items:start;scrollbar-width:thin;}
+.kanban-col{flex:0 0 220px;min-width:220px;display:flex;flex-direction:column;gap:0;}
+.kanban-col-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);padding:6px 4px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.kanban-col-head .count-badge{font-size:10px;}
+.kanban-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px 12px;margin-bottom:8px;cursor:pointer;box-shadow:var(--shadow);transition:box-shadow .15s,transform .1s;position:relative;}
+.kanban-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.kanban-card.pri-high{border-left:3px solid var(--pri-high);}
+.kanban-card.pri-medium{border-left:3px solid var(--pri-med);}
+.kanban-card.pri-low{border-left:3px solid var(--pri-low);}
+.kanban-card-title{font-size:13px;font-weight:600;line-height:1.35;margin-bottom:6px;color:var(--text);}
+.kanban-card-meta{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.kanban-add-col{background:var(--surface2);border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:10px 12px;text-align:center;font-size:12px;color:var(--text3);cursor:pointer;transition:all .15s;margin-bottom:8px;}
+.kanban-add-col:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
+
 /* DRAG OVER SECTION (cross-space) */
 .section-block.drop-target{outline:2px dashed var(--accent);outline-offset:-2px;}
 
@@ -186,7 +218,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .swipe-hint-left{right:12px;}
 .todo-item.swipe-right .swipe-hint-right,.todo-item.swipe-left .swipe-hint-left{opacity:1;}
 
-/* DRAG HANDLE */
+/* TODO DELETE BUTTON */
+.todo-del-btn{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;border:none;background:transparent;color:var(--text3);font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s,background .15s,color .15s;flex-shrink:0;padding:0;}
+.todo-item:hover .todo-del-btn{opacity:1;}
+.todo-del-btn:hover{background:var(--danger-soft);color:var(--danger);opacity:1;}
 .drag-handle{width:18px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:2px 0;opacity:.25;transition:opacity .15s;pointer-events:none;}
 .drag-handle span{display:block;width:12px;height:2px;border-radius:2px;background:var(--text2);}
 .todo-item:hover .drag-handle{opacity:.6;}
@@ -515,6 +550,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <button class="tools-item" id="toolPomodoro">🍅 Pomodoro timer</button>
           <button class="tools-item" id="toolSpaces">🗂 Manage spaces</button>
           <div class="tools-sep"></div>
+          <button class="tools-item" id="toolLang">🌐 Langue / Language</button>
           <button class="tools-item" id="toolBackup">💾 Backups & restore</button>
           <button class="tools-item" id="toolPdf">⬇ Export PDF</button>
           <div class="tools-sep"></div>
@@ -616,6 +652,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="btn-cancel" id="confirmMtgNo" style="flex:1">Cancel</button>
       <button class="btn-confirm-del" id="confirmMtgYes">Delete</button>
     </div>
+  </div>
+</div>
+
+<!-- Language Picker -->
+<div id="langOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);width:100%;max-width:320px;padding:24px;animation:fadeIn .2s ease;">
+    <div style="font-size:17px;font-weight:700;margin-bottom:16px;">🌐 Langue / Language</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+      <button class="lang-opt" data-lang="en" style="padding:14px 16px;border-radius:10px;border:2px solid var(--border);background:var(--surface);font-family:inherit;font-size:15px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;transition:all .15s;">
+        <span style="font-size:22px;">🇬🇧</span><div><div style="font-weight:600;">English</div><div style="font-size:12px;color:var(--text3);">Dashboard in English</div></div>
+      </button>
+      <button class="lang-opt" data-lang="fr" style="padding:14px 16px;border-radius:10px;border:2px solid var(--border);background:var(--surface);font-family:inherit;font-size:15px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;transition:all .15s;">
+        <span style="font-size:22px;">🇫🇷</span><div><div style="font-weight:600;">Français</div><div style="font-size:12px;color:var(--text3);">Tableau de bord en français</div></div>
+      </button>
+    </div>
+    <button id="langClose" style="width:100%;padding:10px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:inherit;font-size:14px;cursor:pointer;">Fermer / Close</button>
   </div>
 </div>
 
@@ -723,21 +775,92 @@ const COLOR_LABELS=[
   {id:'gray',color:'#6b7280',label:'Gray'},
 ];
 
+/* ══ TRANSLATIONS ══ */
+const T={
+  en:{
+    dashboard:'Dashboard', all:'All', week:'Week', calendar:'Calendar',
+    activeTasks:'Active tasks', allSections:'all sections',
+    dueToday:'Due today', dueTomorrow:'Due tomorrow', overdue:'Overdue',
+    highPriority:'High priority', urgent:'urgent', meetingsToday:'Meetings today',
+    pastDue:'past due', todaysMeetings:"Today's meetings", noMeetingsToday:'No meetings today',
+    upcomingMeetings:'Upcoming meetings', noDue:'No due date',
+    active:'Active', done:'Done',
+    low:'Low', medium:'Medium', high:'High',
+    addTask:'Click to add a task…', noTasks:'No tasks — click below to add one',
+    pickDate:'Pick date', noRepeat:'No repeat', weekly:'↻ Weekly', monthly:'↻ Monthly',
+    save:'Save', cancel:'Cancel', delete:'Delete',
+    newMeeting:'New meeting', saveMeeting:'Save meeting',
+    singleClick:'Single-click to filter · Double-click to add meeting',
+    allMeetings:'All meetings', meetings:'Meetings',
+    integrations:'Integrations', gmailTasks:'Gmail → Tasks & Info',
+    gmailDesc:'Claude reads emails, creates tasks or flags info',
+    gcalDesc:'Sync Google Calendar events',
+    neverSynced:'Never synced', lastSync:'Last sync',
+    sync:'Sync', syncing:'Syncing…', synced:'Synced', error:'Error', ready:'Ready',
+    overdueSec:'Overdue', dueTodaySec:'Due today', dueTomorrowSec:'Due tomorrow',
+    highPriSec:'High priority', medPriSec:'Medium priority', lowPriSec:'Low priority',
+    language:'Language', settings:'Settings',
+    workspaces:'Workspaces', newWorkspace:'New workspace', addWorkspace:'Add workspace',
+    pomodoro:'Pomodoro timer', manageSpaces:'Manage spaces',
+    exportPdf:'Export PDF', darkMode:'Dark mode', lightMode:'Light mode',
+    backups:'Backups & restore', saveBackup:'📸 Save backup now', close:'Close',
+    latestBackup:'Latest', restore:'Restore', noBackups:'No backups yet.',
+    focusMode:'Focus 25', shortBreak:'Break 5', longBreak:'Long 15',
+    noTask:'— No task —', sessionToday:'Sessions today',
+    fyiGmail:'FYI from Gmail', dismiss:'Dismiss',
+  },
+  fr:{
+    dashboard:'Tableau de bord', all:'Tout', week:'Semaine', calendar:'Calendrier',
+    activeTasks:'Tâches actives', allSections:'toutes les sections',
+    dueToday:"À faire aujourd'hui", dueTomorrow:'À faire demain', overdue:'En retard',
+    highPriority:'Haute priorité', urgent:'urgent', meetingsToday:"Réunions aujourd'hui",
+    pastDue:'dépassé', todaysMeetings:"Réunions aujourd'hui", noMeetingsToday:'Aucune réunion aujourd\'hui',
+    upcomingMeetings:'Réunions à venir', noDue:'Pas de date limite',
+    active:'Actives', done:'Terminées',
+    low:'Basse', medium:'Moyenne', high:'Haute',
+    addTask:'Cliquer pour ajouter une tâche…', noTasks:'Aucune tâche — cliquez ci-dessous',
+    pickDate:'Choisir une date', noRepeat:'Sans répétition', weekly:'↻ Hebdo', monthly:'↻ Mensuel',
+    save:'Enregistrer', cancel:'Annuler', delete:'Supprimer',
+    newMeeting:'Nouvelle réunion', saveMeeting:'Enregistrer la réunion',
+    singleClick:'Clic simple pour filtrer · Double-clic pour ajouter une réunion',
+    allMeetings:'Toutes les réunions', meetings:'Réunions',
+    integrations:'Intégrations', gmailTasks:'Gmail → Tâches & Infos',
+    gmailDesc:'Claude lit les emails, crée des tâches ou signale des infos',
+    gcalDesc:'Synchroniser Google Agenda',
+    neverSynced:'Jamais synchronisé', lastSync:'Dernière sync',
+    sync:'Sync', syncing:'Synchro…', synced:'Synchronisé', error:'Erreur', ready:'Prêt',
+    overdueSec:'En retard', dueTodaySec:"À faire aujourd'hui", dueTomorrowSec:'À faire demain',
+    highPriSec:'Haute priorité', medPriSec:'Priorité moyenne', lowPriSec:'Priorité basse',
+    language:'Langue', settings:'Paramètres',
+    workspaces:'Espaces de travail', newWorkspace:'Nouvel espace', addWorkspace:'Ajouter',
+    pomodoro:'Minuteur Pomodoro', manageSpaces:'Gérer les espaces',
+    exportPdf:'Exporter en PDF', darkMode:'Mode sombre', lightMode:'Mode clair',
+    backups:'Sauvegardes & restauration', saveBackup:'📸 Sauvegarder maintenant', close:'Fermer',
+    latestBackup:'Dernière', restore:'Restaurer', noBackups:'Aucune sauvegarde.',
+    focusMode:'Focus 25', shortBreak:'Pause 5', longBreak:'Longue pause 15',
+    noTask:'— Aucune tâche —', sessionToday:"Sessions aujourd'hui",
+    fyiGmail:'Infos Gmail', dismiss:'Ignorer',
+  }
+};
+function t(key){return (T[S.lang||'en']||T.en)[key]||key;}
+
 /* ══ STATE ══ */
 let S={
-  theme:'auto', tab:'dashboard', filter:'active',
+  theme:'light', lang:'en', tab:'dashboard', filter:'active',
   calMonth:new Date().getMonth(), calYear:new Date().getFullYear(),
   calSelected:null, quickMeeting:null,
   todos:[], meetings:[],
   inlineOpen:null, inlineState:{}, dashOpen:{},
   weekOffset:0,
   workspaces: JSON.parse(JSON.stringify(DEFAULT_WS)),
+  viewAll:'kanban',    // 'kanban' | 'list'
+  viewWs:'list',       // 'list' | 'kanban'
 };
 
 function load(){
   try{
     const d=JSON.parse(localStorage.getItem('aztodo_v5')||'{}');
-    ['theme','todos','meetings','filter','workspaces'].forEach(k=>{if(d[k]!==undefined)S[k]=d[k];});
+    ['theme','lang','todos','meetings','filter','workspaces','viewAll','viewWs'].forEach(k=>{if(d[k]!==undefined)S[k]=d[k];});
     if(!S.workspaces||!S.workspaces.length) S.workspaces=JSON.parse(JSON.stringify(DEFAULT_WS));
     S.todos.forEach(t=>{
       if(!t.subtasks)t.subtasks=[];
@@ -752,7 +875,7 @@ function load(){
 
 let _pushTimer=null;
 function save(){
-  localStorage.setItem('aztodo_v5',JSON.stringify({theme:S.theme,todos:S.todos,meetings:S.meetings,filter:S.filter,workspaces:S.workspaces}));
+  localStorage.setItem('aztodo_v5',JSON.stringify({theme:S.theme,lang:S.lang,todos:S.todos,meetings:S.meetings,filter:S.filter,workspaces:S.workspaces,viewAll:S.viewAll,viewWs:S.viewWs}));
   clearTimeout(_pushTimer);
   _pushTimer=setTimeout(()=>cloudPush(),1500);
 }
@@ -826,6 +949,26 @@ document.getElementById('toolTheme').addEventListener('click',()=>{
   applyTheme(); save();
   document.getElementById('toolsMenu').classList.remove('open');
 });
+document.getElementById('toolLang').addEventListener('click',()=>{
+  document.getElementById('toolsMenu').classList.remove('open');
+  // highlight current lang
+  document.querySelectorAll('.lang-opt').forEach(btn=>{
+    const sel=btn.dataset.lang===S.lang;
+    btn.style.borderColor=sel?'var(--accent)':'var(--border)';
+    btn.style.background=sel?'var(--accent-soft)':'var(--surface)';
+  });
+  document.getElementById('langOverlay').style.display='flex';
+});
+document.querySelectorAll('.lang-opt').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    S.lang=btn.dataset.lang; save();
+    document.getElementById('langOverlay').style.display='none';
+    applyTranslations(); render();
+    toast(S.lang==='fr'?'🇫🇷 Interface en français':'🇬🇧 Interface in English');
+  });
+});
+document.getElementById('langClose').addEventListener('click',()=>{document.getElementById('langOverlay').style.display='none';});
+document.getElementById('langOverlay').addEventListener('click',e=>{if(e.target.id==='langOverlay')document.getElementById('langOverlay').style.display='none';});
 document.getElementById('toolPdf').addEventListener('click',()=>{
   window.print();
   document.getElementById('toolsMenu').classList.remove('open');
@@ -848,6 +991,22 @@ document.getElementById('logoBtn').addEventListener('click',()=>{
   document.querySelector('[data-tab="dashboard"]')?.classList.add('active');
   render();
 });
+
+/* ══ APPLY TRANSLATIONS ══ */
+function applyTranslations(){
+  document.querySelectorAll('.nav-tab:not([data-ws])').forEach(tab=>{
+    const key=tab.dataset.tab;
+    if(key&&(T.en[key]||T.fr[key])) tab.textContent=t(key);
+  });
+  const toolMap={
+    toolPomodoro:`🍅 ${t('pomodoro')}`,
+    toolSpaces:`🗂 ${t('manageSpaces')}`,
+    toolBackup:`💾 ${t('backups')}`,
+    toolPdf:`⬇ ${t('exportPdf')}`,
+    toolTheme:S.theme==='dark'?`☀️ ${t('lightMode')}`:`🌙 ${t('darkMode')}`,
+  };
+  Object.entries(toolMap).forEach(([id,lbl])=>{const el=document.getElementById(id);if(el)el.textContent=lbl;});
+}
 
 /* ══ TABS ══ */
 function initTabs(){
@@ -1018,16 +1177,16 @@ function renderBackupList(){
   const list=document.getElementById('backupList');
   const backups=getBackups();
   if(!backups.length){
-    list.innerHTML=`<div style="font-size:13px;color:var(--text3);padding:12px 0;">No backups yet. Click "Save backup now" to create one.</div>`;
+    list.innerHTML=`<div style="font-size:13px;color:var(--text3);padding:12px 0;">${t('noBackups')}</div>`;
     return;
   }
   list.innerHTML=backups.map((b,i)=>`
     <div style="background:var(--surface2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
       <div style="flex:1;">
-        <div style="font-size:14px;font-weight:600;">${fmtDate(b.date)} ${i===0?'<span style="font-size:10px;background:var(--success-soft);color:var(--success);padding:1px 7px;border-radius:10px;font-weight:700;">Latest</span>':''}</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:2px;">${b.taskCount} tasks · Saved ${new Date(b.savedAt).toLocaleString()}</div>
+        <div style="font-size:14px;font-weight:600;">${fmtDate(b.date)} ${i===0?`<span style="font-size:10px;background:var(--success-soft);color:var(--success);padding:1px 7px;border-radius:10px;font-weight:700;">${t('latestBackup')}</span>`:''}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px;">${b.taskCount} tasks · ${new Date(b.savedAt).toLocaleString()}</div>
       </div>
-      <button data-bdate="${b.date}" class="restore-btn" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">Restore</button>
+      <button data-bdate="${b.date}" class="restore-btn" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">${t('restore')}</button>
     </div>
   `).join('');
   list.querySelectorAll('.restore-btn').forEach(btn=>{
@@ -1053,7 +1212,7 @@ function renderBackupList(){
 document.getElementById('backupNowBtn').addEventListener('click',()=>{
   saveBackup(todayStr());
   renderBackupList();
-  toast('💾 Backup saved');
+  toast(`💾 ${t('backups').split('&')[0].trim()}`);
 });
 document.getElementById('backupCloseBtn').addEventListener('click',()=>{document.getElementById('backupOverlay').style.display='none';});
 document.getElementById('backupOverlay').addEventListener('click',e=>{if(e.target.id==='backupOverlay')document.getElementById('backupOverlay').style.display='none';});
@@ -1165,10 +1324,9 @@ let pomoState={mode:'work',remaining:25*60,running:false,interval:null,sessions:
 const CIRC=2*Math.PI*70; // 439.8
 
 function openPomodoro(){
-  // populate task select
   const sel=document.getElementById('pomoTaskSelect');
-  sel.innerHTML=`<option value="">— No task —</option>`+
-    S.todos.filter(t=>!t.done).map(t=>`<option value="${t.id}">${esc(t.text.slice(0,50))}</option>`).join('');
+  sel.innerHTML=`<option value="">${t('noTask')}</option>`+
+    S.todos.filter(td=>!td.done).map(td=>`<option value="${td.id}">${esc(td.text.slice(0,50))}</option>`).join('');
   updatePomoDisplay();
   updatePomoSessions();
   document.getElementById('pomoOverlay').style.display='flex';
@@ -1191,7 +1349,7 @@ function updatePomoDisplay(){
   document.getElementById('pomoPlay').textContent=pomoState.running?'⏸':'▶';
 }
 function updatePomoSessions(){
-  document.getElementById('pomoSessions').textContent=`Sessions today: ${pomoState.sessions}`;
+  document.getElementById('pomoSessions').textContent=`${t('sessionToday')}: ${pomoState.sessions}`;
 }
 
 document.querySelectorAll('.pomo-mode-btn').forEach(btn=>{
@@ -1583,13 +1741,13 @@ function buildIntegrationsPanel(){
   const fmtSync=st=>st.lastSync?`Last sync: ${st.lastSync.toLocaleTimeString()}`:'Never synced';
   const infos=gmSt.infos||[];
 
-  const statusLabel=st=>({idle:'Ready',ok:'Synced',loading:'Syncing…',err:'Error'}[st.status]||st.status);
+  const statusLabel=st=>({idle:t('ready'),ok:t('synced'),loading:t('syncing'),err:t('error')}[st.status]||st.status);
 
   // Build email info items section
   let infoHtml='';
   if(infos.length){
     infoHtml=`<div class="email-infos">
-      <div class="email-infos-title">💡 FYI from Gmail <span class="count-badge">${infos.length}</span></div>
+      <div class="email-infos-title">💡 ${t('fyiGmail')} <span class="count-badge">${infos.length}</span></div>
       ${infos.map((inf,i)=>`
       <div class="email-info-item" data-info-idx="${i}">
         <div class="email-info-from">${esc(inf.from||'')}</div>
@@ -1597,35 +1755,35 @@ function buildIntegrationsPanel(){
           <div class="email-info-subject">${esc(inf.subject||'')}</div>
           <div class="email-info-summary">${esc(inf.summary||inf.text||'')}</div>
         </div>
-        <button class="email-info-dismiss" data-info-idx="${i}" title="Dismiss">×</button>
+        <button class="email-info-dismiss" data-info-idx="${i}" title="${t('dismiss')}">×</button>
       </div>`).join('')}
     </div>`;
   }
 
   return `<div class="integrations-panel">
-    <div class="integrations-title">🔗 Integrations</div>
+    <div class="integrations-title">🔗 ${t('integrations')}</div>
 
     <div class="integration-row">
       <div class="integration-icon">📧</div>
       <div class="integration-info">
-        <div class="integration-name">Gmail → Tasks & Info</div>
-        <div class="integration-desc">Claude reads emails, creates tasks or flags info · ${fmtSync(gmSt)}</div>
+        <div class="integration-name">${t('gmailTasks')}</div>
+        <div class="integration-desc">${t('gmailDesc')} · ${fmtSync(gmSt)}</div>
         <div class="integration-log${gmSt.log.length?' show':''}" id="int-log-gmail">${gmSt.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
         ${infoHtml}
       </div>
       <span class="integration-status ${gmSt.status}" id="int-status-gmail">${statusLabel(gmSt)}</span>
-      <button class="btn-sync-integration" id="int-btn-gmail" ${gmSt.status==='loading'?'disabled':''}>Sync</button>
+      <button class="btn-sync-integration" id="int-btn-gmail" ${gmSt.status==='loading'?'disabled':''}>${t('sync')}</button>
     </div>
 
     <div class="integration-row">
       <div class="integration-icon">📅</div>
       <div class="integration-info">
-        <div class="integration-name">Google Calendar → Meetings</div>
+        <div class="integration-name">Google Calendar → ${t('meetings')}</div>
         <div class="integration-desc">${GCAL_EMAIL} · ${fmtSync(gcSt)}</div>
         <div class="integration-log${gcSt.log.length?' show':''}" id="int-log-gcal">${gcSt.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
       </div>
       <span class="integration-status ${gcSt.status}" id="int-status-gcal">${statusLabel(gcSt)}</span>
-      <button class="btn-sync-integration" id="int-btn-gcal" ${gcSt.status==='loading'?'disabled':''}>Sync</button>
+      <button class="btn-sync-integration" id="int-btn-gcal" ${gcSt.status==='loading'?'disabled':''}>${t('sync')}</button>
     </div>
   </div>`;
 }
@@ -1668,29 +1826,29 @@ function renderDashboard(ca){
   const upcomingMtgs=S.meetings.filter(m=>m.date>today).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)).slice(0,5);
 
   let h=`<div class="dash-grid">
-    <div class="stat-card blue"><div class="stat-label">Active tasks</div><div class="stat-value">${active.length}</div><div class="stat-sub">all sections</div></div>
-    <div class="stat-card amber"><div class="stat-label">Due today</div><div class="stat-value">${dueToday.length}</div><div class="stat-sub">${fmtDate(today)}</div></div>
-    <div class="stat-card"><div class="stat-label">Due tomorrow</div><div class="stat-value">${dueTomorrow.length}</div><div class="stat-sub">${fmtDate(tomorrow)}</div></div>
-    <div class="stat-card red"><div class="stat-label">Overdue</div><div class="stat-value">${overdue.length}</div><div class="stat-sub">past due</div></div>
-    <div class="stat-card red"><div class="stat-label">High priority</div><div class="stat-value">${highPri.length}</div><div class="stat-sub">urgent</div></div>
-    <div class="stat-card purple"><div class="stat-label">Meetings today</div><div class="stat-value">${todayMtgs.length}</div><div class="stat-sub">${fmtDate(today)}</div></div>
+    <div class="stat-card blue"><div class="stat-label">${t('activeTasks')}</div><div class="stat-value">${active.length}</div><div class="stat-sub">${t('allSections')}</div></div>
+    <div class="stat-card amber"><div class="stat-label">${t('dueToday')}</div><div class="stat-value">${dueToday.length}</div><div class="stat-sub">${fmtDate(today)}</div></div>
+    <div class="stat-card"><div class="stat-label">${t('dueTomorrow')}</div><div class="stat-value">${dueTomorrow.length}</div><div class="stat-sub">${fmtDate(tomorrow)}</div></div>
+    <div class="stat-card red"><div class="stat-label">${t('overdue')}</div><div class="stat-value">${overdue.length}</div><div class="stat-sub">${t('pastDue')}</div></div>
+    <div class="stat-card red"><div class="stat-label">${t('highPriority')}</div><div class="stat-value">${highPri.length}</div><div class="stat-sub">${t('urgent')}</div></div>
+    <div class="stat-card purple"><div class="stat-label">${t('meetingsToday')}</div><div class="stat-value">${todayMtgs.length}</div><div class="stat-sub">${fmtDate(today)}</div></div>
   </div>`;
 
   // Today's meetings static
-  h+=`<div class="dash-section"><div class="dash-section-title">📅 Today's meetings <span class="count-badge">${todayMtgs.length}</span></div>`;
-  if(!todayMtgs.length)h+=`<div style="font-size:13px;color:var(--text3);padding:4px 0 12px">No meetings today</div>`;
+  h+=`<div class="dash-section"><div class="dash-section-title">📅 ${t('todaysMeetings')} <span class="count-badge">${todayMtgs.length}</span></div>`;
+  if(!todayMtgs.length)h+=`<div style="font-size:13px;color:var(--text3);padding:4px 0 12px">${t('noMeetingsToday')}</div>`;
   todayMtgs.forEach(m=>{const i=SECS[m.section]||{tag:'tag-pro',label:'?'};const cn=stripHtml(m.notes||'');h+=`<div class="dash-mtg-row"><div class="dash-mtg-time">${m.time||'--:--'}</div><div style="flex:1"><div style="font-size:14px;font-weight:600">${esc(m.title)}</div>${cn?`<div style="font-size:12px;color:var(--text3)">${esc(cn)}</div>`:''}</div><span class="tag ${i.tag}" style="font-size:11px">${i.label}</span></div>`;});
   h+=`</div>`;
 
-  if(overdue.length) h+=accSection('overdue','⚠','Overdue','var(--danger)',overdue.length,overdue.map(dashTodoRow),true);
-  h+=accSection('dueToday','⏰','Due today','var(--warning)',dueToday.length,dueToday.map(dashTodoRow),true);
-  h+=accSection('dueTomorrow','📅','Due tomorrow','var(--text2)',dueTomorrow.length,dueTomorrow.map(dashTodoRow),false);
-  h+=accSection('highPri','🔴','High priority','var(--danger)',highPri.length,highPri.map(dashTodoRow),true);
-  h+=accSection('medPri','🟡','Medium priority','var(--warning)',medPri.length,medPri.map(dashTodoRow),false);
-  h+=accSection('lowPri','🔵','Low priority','var(--accent)',lowPri.length,lowPri.map(dashTodoRow),false);
+  if(overdue.length) h+=accSection('overdue','⚠',t('overdueSec'),'var(--danger)',overdue.length,overdue.map(dashTodoRow),true);
+  h+=accSection('dueToday','⏰',t('dueTodaySec'),'var(--warning)',dueToday.length,dueToday.map(dashTodoRow),true);
+  h+=accSection('dueTomorrow','📅',t('dueTomorrowSec'),'var(--text2)',dueTomorrow.length,dueTomorrow.map(dashTodoRow),false);
+  h+=accSection('highPri','🔴',t('highPriSec'),'var(--danger)',highPri.length,highPri.map(dashTodoRow),true);
+  h+=accSection('medPri','🟡',t('medPriSec'),'var(--warning)',medPri.length,medPri.map(dashTodoRow),false);
+  h+=accSection('lowPri','🔵',t('lowPriSec'),'var(--accent)',lowPri.length,lowPri.map(dashTodoRow),false);
   if(upcomingMtgs.length){
-    const rows=upcomingMtgs.map(m=>{const i=SECS[m.section];return `<div class="dash-mtg-row"><div class="dash-mtg-time">${fmtDate(m.date)}</div><div style="flex:1"><div style="font-size:14px;font-weight:600">${esc(m.title)}</div>${m.time?`<div style="font-size:12px;color:var(--text3)">${m.time}</div>`:''}</div><span class="tag ${i.tag}" style="font-size:11px">${i.label}</span></div>`;});
-    h+=accSection('upcoming','📆','Upcoming meetings','var(--text2)',upcomingMtgs.length,rows,false);
+    const rows=upcomingMtgs.map(m=>{const i=SECS[m.section]||{tag:'tag-pro',label:'?'};return `<div class="dash-mtg-row"><div class="dash-mtg-time">${fmtDate(m.date)}</div><div style="flex:1"><div style="font-size:14px;font-weight:600">${esc(m.title)}</div>${m.time?`<div style="font-size:12px;color:var(--text3)">${m.time}</div>`:''}</div><span class="tag ${i.tag}" style="font-size:11px">${i.label}</span></div>`;});
+    h+=accSection('upcoming','📆',t('upcomingMeetings'),'var(--text2)',upcomingMtgs.length,rows,false);
   }
 
   ca.innerHTML=h;
@@ -1726,15 +1884,213 @@ function renderTodos(ca){
   SECS=getSECS();
   const isSingle=S.tab!=='all';
   const secs=isSingle?[S.tab]:(S.workspaces||[]).map(w=>w.id);
-  let h=`<div class="filter-bar">
-    <button class="filter-btn ${S.filter==='active'?'active':''}" data-f="active">Active</button>
-    <button class="filter-btn ${S.filter==='all'?'active':''}" data-f="all">All</button>
-    <button class="filter-btn ${S.filter==='done'?'active':''}" data-f="done">Done</button>
-  </div><div class="${isSingle?'':'todos-grid'}">`;
-  secs.forEach(sec=>{h+=buildSection(sec);});
+  const viewMode=isSingle?S.viewWs:S.viewAll;
+
+  const filterBar=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+    <div class="filter-bar" style="margin-bottom:0;">
+      <button class="filter-btn ${S.filter==='active'?'active':''}" data-f="active">${t('active')}</button>
+      <button class="filter-btn ${S.filter==='all'?'active':''}" data-f="all">${t('all')}</button>
+      <button class="filter-btn ${S.filter==='done'?'active':''}" data-f="done">${t('done')}</button>
+    </div>
+    <div style="flex:1;"></div>
+    ${isSingle?`
+    <div class="view-toggle">
+      <button class="view-btn${viewMode==='list'?' active':''}" data-view="list" data-vscope="ws">☰ List</button>
+      <button class="view-btn${viewMode==='kanban'?' active':''}" data-view="kanban" data-vscope="ws">⊞ Kanban</button>
+    </div>`:`
+    <div class="view-toggle">
+      <button class="view-btn${viewMode==='kanban'?' active':''}" data-view="kanban" data-vscope="all">⊞ Kanban</button>
+      <button class="view-btn${viewMode==='list'?' active':''}" data-view="list" data-vscope="all">☰ List</button>
+    </div>`}
+  </div>`;
+
+  let body='';
+  if(viewMode==='list'){
+    body=buildListView(secs,isSingle);
+  } else if(isSingle){
+    body=buildKanbanView(secs[0]);
+  } else {
+    // All tab kanban — horizontal scroll
+    body=`<div class="todos-grid">`;
+    secs.forEach(sec=>{body+=buildSection(sec);});
+    body+=`</div>`;
+  }
+
+  ca.innerHTML=filterBar+body;
+
+  // bind view toggle
+  ca.querySelectorAll('.view-btn[data-view]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(btn.dataset.vscope==='ws') S.viewWs=btn.dataset.view;
+      else S.viewAll=btn.dataset.view;
+      save(); render();
+    });
+  });
+  ca.querySelectorAll('.filter-btn[data-f]').forEach(b=>{b.addEventListener('click',()=>{S.filter=b.dataset.f;render();});});
+
+  if(viewMode==='list') bindListViewEvents(ca);
+  else if(isSingle) bindKanbanEvents(ca,secs[0]);
+  else bindTodoEvents(ca,secs);
+}
+
+/* ── LIST VIEW ── */
+function buildListView(secs,isSingle){
+  let todos=[];
+  secs.forEach(sec=>{
+    let st=S.todos.filter(t=>t.section===sec);
+    if(S.filter==='active') st=st.filter(t=>!t.done);
+    if(S.filter==='done')   st=st.filter(t=>t.done);
+    todos.push(...st);
+  });
+
+  if(!todos.length) return `<div class="empty-state" style="padding:32px 0;text-align:center;">${t('noTasks')}</div>`;
+
+  const wsHeader=isSingle?'':`<th style="width:24px;"></th>`;
+  const wsLabel=isSingle?'':`<th>${SECS[secs[0]]?.label||''}</th>`;
+
+  return `<div style="overflow-x:auto;">
+  <table class="list-view-table">
+    <thead>
+      <tr>
+        <th style="width:28px;"></th>
+        ${!isSingle?`<th style="width:10px;"></th>`:''}
+        <th>Task</th>
+        ${!isSingle?`<th>Space</th>`:''}
+        <th>Due</th>
+        <th>Priority</th>
+        <th style="width:60px;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      ${todos.map(t=>{
+        const ov=isOv(t.due,t.done);
+        const pri=t.priority||'medium';
+        const lc=getLabelColor(t.label);
+        const info=SECS[t.section]||{color:'var(--text3)',label:t.section,tag:'tag-pro'};
+        const priColors={high:'var(--danger)',medium:'var(--warning)',low:'var(--accent)'};
+        return `<tr data-id="${t.id}" class="${t.done?'done-row':''}">
+          <td><input type="checkbox" ${t.done?'checked':''} class="lv-check" data-id="${t.id}" onclick="event.stopPropagation()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);"></td>
+          ${!isSingle?`<td><span class="lv-ws-dot" style="background:${info.color};"></span></td>`:''}
+          <td><div class="lv-text" style="display:flex;align-items:center;gap:6px;">${lc?`<span class="clabel" style="background:${lc};flex-shrink:0;"></span>`:''}<span>${esc(t.text)}</span>${t.source==='gmail'?`<span style="font-size:9px;font-weight:700;padding:0 4px;border-radius:3px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;flex-shrink:0;">Gmail</span>`:''}</div></td>
+          ${!isSingle?`<td><span class="tag ${info.tag}" style="font-size:10px;padding:1px 6px;">${info.label}</span></td>`:''}
+          <td style="font-size:12px;color:${ov?'var(--danger)':'var(--text3)'};white-space:nowrap;">${t.due?fmtDate(t.due):'—'}</td>
+          <td><span class="pri-badge pri-badge-${pri}" style="font-size:10px;">${cap(pri)}</span></td>
+          <td style="text-align:right;"><button class="lv-edit-btn" data-id="${t.id}" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px;" onclick="event.stopPropagation()">✎</button></td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+function bindListViewEvents(ca){
+  ca.querySelectorAll('tbody tr[data-id]').forEach(row=>{
+    row.addEventListener('click',()=>openEditModal(row.dataset.id));
+  });
+  ca.querySelectorAll('.lv-check').forEach(cb=>{
+    cb.addEventListener('change',()=>toggleDone(cb.dataset.id));
+  });
+  ca.querySelectorAll('.lv-edit-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>openEditModal(btn.dataset.id));
+  });
+}
+
+/* ── KANBAN VIEW (workspace) ── */
+const KANBAN_COLS=[
+  {id:'todo',    label:'To Do',     labelFr:'À faire',   filter:t=>!t.done&&(!t.priority||t.priority==='low')},
+  {id:'medium',  label:'In Progress',labelFr:'En cours',  filter:t=>!t.done&&t.priority==='medium'},
+  {id:'high',    label:'Urgent',    labelFr:'Urgent',    filter:t=>!t.done&&t.priority==='high'},
+  {id:'done',    label:'Done',      labelFr:'Terminé',   filter:t=>t.done},
+];
+
+function buildKanbanView(sec){
+  const allTodos=S.todos.filter(t=>t.section===sec);
+  const info=SECS[sec]||{color:'var(--accent)'};
+
+  let h=`<div class="kanban-columns">`;
+  KANBAN_COLS.forEach(col=>{
+    const colLabel=S.lang==='fr'?col.labelFr:col.label;
+    let items=allTodos.filter(col.filter);
+    const count=items.length;
+    h+=`<div class="kanban-col" data-kcol="${col.id}">
+      <div class="kanban-col-head">
+        <span>${colLabel}</span>
+        <span class="count-badge">${count}</span>
+      </div>`;
+    items.forEach(t=>{
+      const ov=isOv(t.due,t.done);
+      const lc=getLabelColor(t.label);
+      const pri=t.priority||'low';
+      h+=`<div class="kanban-card pri-${pri}" data-id="${t.id}" draggable="true" data-kcol="${col.id}">
+        ${lc?`<div style="width:100%;height:3px;border-radius:2px;background:${lc};margin-bottom:7px;"></div>`:''}
+        <div class="kanban-card-title">${esc(t.text)}</div>
+        <div class="kanban-card-meta">
+          ${t.due?`<span class="todo-date${ov?' ov':''}" style="font-size:10px;">${fmtDate(t.due)}</span>`:''}
+          ${t.source==='gmail'?`<span style="font-size:9px;font-weight:700;padding:0 4px;border-radius:3px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;">Gmail</span>`:''}
+          ${t.recur?`<span class="recur-badge" style="font-size:9px;">↻</span>`:''}
+          ${t.subtasks?.length?`<span style="font-size:10px;color:var(--text3);">◎ ${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>`:''}
+        </div>
+      </div>`;
+    });
+    // Add card button (only for non-done cols)
+    if(col.id!=='done'){
+      h+=`<div class="kanban-add-col" data-kadd="${col.id}" data-sec="${sec}">+ Add card</div>`;
+    }
+    h+=`</div>`;
+  });
   h+=`</div>`;
-  ca.innerHTML=h;
-  bindTodoEvents(ca,secs);
+  return h;
+}
+
+function kanbanColToPriority(colId){
+  if(colId==='high') return 'high';
+  if(colId==='medium') return 'medium';
+  return 'low';
+}
+
+function bindKanbanEvents(ca,sec){
+  // click to edit
+  ca.querySelectorAll('.kanban-card[data-id]').forEach(card=>{
+    card.addEventListener('click',()=>openEditModal(card.dataset.id));
+    card.addEventListener('contextmenu',e=>{e.preventDefault();showCtx({clientX:e.clientX,clientY:e.clientY},card.dataset.id);});
+  });
+
+  // drag between kanban cols to change priority/done
+  let dragKanbanId=null;
+  ca.querySelectorAll('.kanban-card[data-id]').forEach(card=>{
+    card.addEventListener('dragstart',e=>{
+      dragKanbanId=card.dataset.id;
+      e.dataTransfer.effectAllowed='move';
+      setTimeout(()=>card.style.opacity='.35',0);
+    });
+    card.addEventListener('dragend',()=>{card.style.opacity='';dragKanbanId=null;ca.querySelectorAll('.kanban-col').forEach(c=>c.style.outline='');});
+  });
+  ca.querySelectorAll('.kanban-col').forEach(col=>{
+    col.addEventListener('dragover',e=>{e.preventDefault();col.style.outline='2px dashed var(--accent)';col.style.borderRadius='12px';});
+    col.addEventListener('dragleave',()=>{col.style.outline='';});
+    col.addEventListener('drop',e=>{
+      e.preventDefault(); col.style.outline='';
+      if(!dragKanbanId) return;
+      const targetCol=col.dataset.kcol;
+      const todo=S.todos.find(t=>t.id===dragKanbanId);
+      if(!todo) return;
+      if(targetCol==='done'){ todo.done=true; }
+      else { todo.done=false; todo.priority=kanbanColToPriority(targetCol); }
+      save(); render();
+    });
+  });
+
+  // quick add card
+  ca.querySelectorAll('.kanban-add-col[data-kadd]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const pri=kanbanColToPriority(btn.dataset.kadd);
+      S.inlineOpen=sec;
+      if(!S.inlineState[sec]) S.inlineState[sec]={pri,date:todayStr(),text:''};
+      S.inlineState[sec].pri=pri;
+      // Switch to list view to use inline add
+      S.viewWs='list'; render();
+      setTimeout(()=>{const i=document.getElementById('ii_'+sec);if(i)i.focus();},50);
+    });
+  });
 }
 
 function buildSection(sec){
@@ -1751,7 +2107,7 @@ function buildSection(sec){
       <span class="count-badge">${activeN}</span>
     </div><div class="todo-list">`;
 
-  if(!todos.length) h+=`<div class="empty-state">No tasks — click below to add one</div>`;
+  if(!todos.length) h+=`<div class="empty-state">${t('noTasks')}</div>`;
 
   todos.forEach(t=>{
     const ov=isOv(t.due,t.done);
@@ -1782,6 +2138,7 @@ function buildSection(sec){
           ${t.done?`<span style="font-size:11px;color:var(--success);font-weight:600;">✓ Done</span>`:''}
         </div>
       </div>
+      <button class="todo-del-btn" data-id="${t.id}" title="Delete task" onclick="event.stopPropagation()">×</button>
       <div class="swipe-hint swipe-hint-right">✓</div>
       <div class="swipe-hint swipe-hint-left">🗑</div>
     </div>`;
@@ -1799,24 +2156,37 @@ function buildSection(sec){
         <button class="pri-box low${dp==='low'?' sel':''}" data-pri="low" data-sec="${sec}">Low</button>
         <button class="pri-box medium${dp==='medium'?' sel':''}" data-pri="medium" data-sec="${sec}">Medium</button>
         <button class="pri-box high${dp==='high'?' sel':''}" data-pri="high" data-sec="${sec}">High</button>
-        <button class="inline-date-btn${dd?' has-date':''}" id="idb_${sec}">${dd?fmtDate(dd):'Pick date'}</button>
+        <button class="inline-date-btn${dd?' has-date':''}" id="idb_${sec}">${dd?fmtDate(dd):t('pickDate')}</button>
         <select id="irec_${sec}" class="inline-select" style="background:var(--surface);border:1.5px solid var(--border2);border-radius:8px;padding:5px 8px;font-family:inherit;font-size:12px;color:var(--text2);outline:none;">
-          <option value="">No repeat</option>
-          <option value="weekly"${dr==='weekly'?' selected':''}>↻ Weekly</option>
-          <option value="monthly"${dr==='monthly'?' selected':''}>↻ Monthly</option>
+          <option value="">${t('noRepeat')}</option>
+          <option value="weekly"${dr==='weekly'?' selected':''}>${t('weekly')}</option>
+          <option value="monthly"${dr==='monthly'?' selected':''}>${t('monthly')}</option>
         </select>
-        <button id="isave_${sec}" class="inline-save">Add</button>
+        <button id="isave_${sec}" class="inline-save">${t('save')}</button>
         <button id="icancel_${sec}" class="inline-cancel">×</button>
       </div>
     </div>`;
   } else {
-    h+=`<div class="inline-add" data-sec="${sec}"><div class="add-plus">+</div><span class="add-prompt">Click to add a task…</span></div>`;
+    h+=`<div class="inline-add" data-sec="${sec}"><div class="add-plus">+</div><span class="add-prompt">${t('addTask')}</span></div>`;
   }
   h+=`</div></div>`;
   return h;
 }
 
 function bindTodoEvents(ca,secs){
+  // × delete buttons
+  ca.querySelectorAll('.todo-del-btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const id=btn.dataset.id;
+      const t=S.todos.find(x=>x.id===id);
+      if(!t)return;
+      pendingDeleteId=id;
+      document.getElementById('confirmMsg').textContent=`"${t.text.slice(0,60)}"`;
+      document.getElementById('confirmOverlay').classList.add('open');
+    });
+  });
+
   ca.querySelectorAll('.filter-btn[data-f]').forEach(b=>{b.addEventListener('click',()=>{S.filter=b.dataset.f;render();});});
 
   let dragId=null,didDrag=false;
@@ -2304,15 +2674,15 @@ function renderCalendar(ca){
   const rem=(start+dim)%7===0?0:7-(start+dim)%7;
   for(let d=1;d<=rem;d++){const nm=mo===11?0:mo+1,ny=mo===11?yr+1:yr,ds=`${ny}-${p2(nm+1)}-${p2(d)}`;const isPast=ds<todayStr();const isSel=S.calSelected===ds;const dots=S.meetings.filter(m=>m.date===ds).slice(0,4).map(m=>`<div class="cal-dot ${SECS[m.section].dot}"></div>`).join('');grid+=`<div class="cal-day other-month${isPast?' past':''}${isSel?' selected':''}" data-date="${ds}"><div class="cal-day-num" style="color:var(--text3)">${d}</div>${dots?`<div class="cal-dots">${dots}</div>`:''}</div>`;}
 
-  grid+=`</div></div><p class="cal-hint">Single-click to filter · Double-click to add meeting</p></div>`;
+  grid+=`</div></div><p class="cal-hint">${t('singleClick')}</p></div>`;
 
   const disp=S.calSelected?S.meetings.filter(m=>m.date===S.calSelected).sort((a,b)=>a.time.localeCompare(b.time)):monthMtgs.sort((a,b)=>a.date!==b.date?a.date.localeCompare(b.date):a.time.localeCompare(b.time));
-  const ptitle=S.calSelected?`Meetings · ${fmtDate(S.calSelected)}`:`All meetings · ${MONTHS[mo]}`;
+  const ptitle=S.calSelected?`${t('meetings')} · ${fmtDate(S.calSelected)}`:`${t('allMeetings')} · ${MONTHS[mo]}`;
 
   let mp=`<div>`;
   if(S.quickMeeting){
-    mp+=`<div class="quick-meeting"><h3>New meeting — ${fmtDate(S.quickMeeting)}</h3>
-      <div class="qm-row"><input id="qmTitle" class="qm-input" placeholder="Meeting title" style="flex:2;min-width:160px" /></div>
+    mp+=`<div class="quick-meeting"><h3>${t('newMeeting')} — ${fmtDate(S.quickMeeting)}</h3>
+      <div class="qm-row"><input id="qmTitle" class="qm-input" placeholder="${t('newMeeting')}…" style="flex:2;min-width:160px" /></div>
       <div class="qm-row">
         <input id="qmDate" type="date" class="qm-input" value="${S.quickMeeting}" min="${todayStr()}" />
         <div class="time-picker">
@@ -2323,14 +2693,14 @@ function renderCalendar(ca){
         <select id="qmSec" class="qm-input">${(S.workspaces||DEFAULT_WS).map(ws=>`<option value="${ws.id}">${esc(ws.label)}</option>`).join('')}</select>
       </div>
       <div class="qm-row">
-        <input id="qmNotes" class="qm-input" placeholder="Notes (optional)" style="flex:2;" />
+        <input id="qmNotes" class="qm-input" placeholder="Notes" style="flex:2;" />
         <select id="qmRecur" class="qm-input" style="flex:1;min-width:120px;">
-          <option value="">No repeat</option>
-          <option value="weekly">↻ Weekly</option>
-          <option value="monthly">↻ Monthly</option>
+          <option value="">${t('noRepeat')}</option>
+          <option value="weekly">${t('weekly')}</option>
+          <option value="monthly">${t('monthly')}</option>
         </select>
       </div>
-      <div class="qm-actions"><button class="btn-cancel-qm" id="qmCancel">Cancel</button><button class="btn-save-mtg" id="qmSave">Save meeting</button></div>
+      <div class="qm-actions"><button class="btn-cancel-qm" id="qmCancel">${t('cancel')}</button><button class="btn-save-mtg" id="qmSave">${t('saveMeeting')}</button></div>
     </div>`;
   }
   mp+=`<div class="meetings-panel-title">${ptitle}<span class="count-badge">${disp.length}</span>${S.calSelected?`<button class="filter-btn" id="clearSel" style="padding:2px 8px;font-size:11px">Clear</button>`:''}</div>`;
@@ -2388,7 +2758,8 @@ function renderCalendar(ca){
 }
 
 /* ══ INIT ══ */
-updateSyncLabel(); // show last sync time from localStorage immediately
+updateSyncLabel();
+applyTranslations();
 render();
 </script>
 </body>
