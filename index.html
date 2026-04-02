@@ -877,12 +877,35 @@ async function cloudPull(){
     const r=await fetch('/api/sync');
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
-    if(d.todos)S.todos=d.todos;
-    if(d.meetings)S.meetings=d.meetings;
-    if(d.theme)S.theme=d.theme;
-    if(d.filter)S.filter=d.filter;
+
+    // SAFETY: never overwrite local data with empty or smaller cloud data
+    const cloudTodos=d.todos||[];
+    const cloudMeetings=d.meetings||[];
+    const localTodos=S.todos||[];
+    const localMeetings=S.meetings||[];
+
+    if(cloudTodos.length===0&&localTodos.length>0){
+      // Cloud is empty but we have local data → push local up instead
+      syncStatus('');
+      await cloudPush();
+      toast('↑ Local data pushed to cloud (cloud was empty)');
+      return;
+    }
+    if(cloudTodos.length<localTodos.length*0.5&&localTodos.length>3){
+      // Cloud has less than half our local tasks — something went wrong, keep local
+      syncStatus('err');
+      toast('⚠ Cloud has fewer tasks than local — keeping local data safe');
+      return;
+    }
+
+    // Safe to apply cloud data
+    if(cloudTodos.length>0) S.todos=cloudTodos;
+    if(cloudMeetings.length>0) S.meetings=cloudMeetings;
+    if(d.theme) S.theme=d.theme;
+    if(d.filter) S.filter=d.filter;
+    if(d.workspaces&&d.workspaces.length>0) S.workspaces=d.workspaces;
     S.todos.forEach(t=>{if(!t.subtasks)t.subtasks=[];if(!t.label)t.label='';if(!t.recur)t.recur='';});
-    save(); syncStatus('ok'); toast('✓ Loaded from cloud'); applyTheme(); render();
+    save(); syncStatus('ok'); applyTheme(); render();
   }catch(e){syncStatus('');}
 }
 window.addEventListener('load',()=>cloudPull());
