@@ -2134,7 +2134,11 @@ function renderCalendar(ca){
   let grid=`<div class="cal-panel">
     <div class="calendar-header">
       <div class="cal-month-label">${MONTHS[mo]} ${yr}</div>
-      <div class="cal-nav"><button class="btn-icon" id="calPrev">‹</button><button class="btn-icon" id="calNext">›</button></div>
+      <div class="cal-nav">
+        <button class="btn-icon" id="calPrev">‹</button>
+        <button class="btn-icon" id="calNext">›</button>
+        <button class="btn-icon" id="calSync" title="Sync Google Calendar" style="font-size:13px;padding:0 10px;width:auto;gap:5px;display:flex;align-items:center;">🔄 Sync</button>
+      </div>
     </div>
     <div class="cal-grid">
       <div class="cal-days-header">${['Mo','Tu','We','Th','Fr','Sa','Su'].map(d=>`<div class="cal-day-name">${d}</div>`).join('')}</div>
@@ -2196,6 +2200,12 @@ function renderCalendar(ca){
 
   document.getElementById('calPrev').addEventListener('click',()=>{S.calMonth--;if(S.calMonth<0){S.calMonth=11;S.calYear--;}S.calSelected=null;S.quickMeeting=null;render();});
   document.getElementById('calNext').addEventListener('click',()=>{S.calMonth++;if(S.calMonth>11){S.calMonth=0;S.calYear++;}S.calSelected=null;S.quickMeeting=null;render();});
+  document.getElementById('calSync').addEventListener('click',async()=>{
+    const btn=document.getElementById('calSync');
+    btn.textContent='⏳ Syncing…'; btn.disabled=true;
+    await syncGCal();
+    // render is called inside syncGCal, button will be recreated
+  });
   ca.querySelectorAll('.cal-day:not(.past)').forEach(day=>{
     day.addEventListener('click',()=>{if(!day.dataset.date)return;const d=day.dataset.date;S.calSelected=S.calSelected===d?null:d;S.quickMeeting=null;render();});
     day.addEventListener('dblclick',()=>{if(!day.dataset.date)return;S.calSelected=day.dataset.date;S.quickMeeting=day.dataset.date;render();setTimeout(()=>{const el=document.getElementById('qmTitle');if(el)el.focus();},30);});
