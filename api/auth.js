@@ -63,6 +63,35 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: !!payload, email: payload?.email });
   }
 
+  // Google Sign-In
+  if (action === 'google') {
+    const { credential } = req.body || {};
+    if (!credential) return res.status(400).json({ error: 'Missing Google credential' });
+    try {
+      // Verify ID token with Google's tokeninfo endpoint
+      const gr = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+      const info = await gr.json();
+      if (info.error) return res.status(401).json({ error: 'Invalid Google token' });
+      // Verify audience matches our client ID
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      if (clientId && info.aud !== clientId) return res.status(401).json({ error: 'Token audience mismatch' });
+      const googleEmail = info.email?.toLowerCase();
+      if (!googleEmail) return res.status(401).json({ error: 'No email in Google token' });
+      // Create user if not exists (no password needed for Google users)
+      if (USERS_BIN_ID) {
+        const users = await getUsers();
+        if (!users[googleEmail]) {
+          users[googleEmail] = { email: googleEmail, provider: 'google', created: new Date().toISOString() };
+          await saveUsers(users);
+        }
+      }
+      const t = createToken(googleEmail);
+      return res.status(200).json({ ok: true, token: t, email: googleEmail });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
   const emailLower = email.toLowerCase().trim();
   const hashed = hashPassword(password);
