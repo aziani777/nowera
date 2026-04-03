@@ -581,9 +581,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="btn-sync" id="syncBtn"><span class="sync-dot"></span> Sync</button>
       <div class="user-avatar-wrap" style="position:relative;">
         <button id="userAvatarBtn" title="Account" style="width:34px;height:34px;border-radius:50%;border:none;background:var(--accent);color:white;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">?</button>
-        <div id="userDropdown" style="display:none;position:absolute;right:0;top:42px;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:var(--shadow-lg);padding:12px 16px;min-width:200px;z-index:999;">
+        <div id="userDropdown" style="display:none;position:absolute;right:0;top:42px;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:var(--shadow-lg);padding:12px 16px;min-width:210px;z-index:999;">
           <div style="font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;">Signed in as</div>
-          <div id="userEmailDisplay" style="font-size:13px;font-weight:600;color:var(--text);word-break:break-all;"></div>
+          <div id="userEmailDisplay" style="font-size:13px;font-weight:600;color:var(--text);word-break:break-all;margin-bottom:12px;"></div>
+          <div style="height:1px;background:var(--border);margin-bottom:10px;"></div>
+          <button id="avatarSignOut" style="width:100%;padding:8px 10px;border-radius:8px;border:none;background:var(--danger-soft);color:var(--danger);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:left;">🚪 Sign out</button>
         </div>
       </div>
       <div class="tools-wrap">
@@ -597,8 +599,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <button class="tools-item" id="toolPdf">⬇ Export PDF</button>
           <div class="tools-sep"></div>
           <button class="tools-item" id="toolTheme">🌗 Toggle theme</button>
-          <div class="tools-sep"></div>
-          <button class="tools-item" id="toolLogout" style="color:var(--danger);">🚪 Sign out</button>
+
         </div>
       </div>
     </div>
@@ -838,7 +839,24 @@ function showAuthOverlay(mode){
 
 function hideAuthOverlay(){
   document.getElementById('authOverlay').style.display = 'none';
-  // Update avatar button with first letter of email
+
+  // ── Per-user state isolation ──
+  // If a different user logged in on this device, wipe localStorage to start blank
+  const storedUser = localStorage.getItem('aztodo_active_user');
+  const isMainUser = currentUser === MAIN_USER || currentUser === 'local';
+  if(!isMainUser && storedUser && storedUser !== currentUser){
+    // Different user: clear their old data
+    localStorage.removeItem('aztodo_v5');
+    // Re-init state to empty
+    S.todos=[]; S.meetings=[]; S.filter='all';
+    S.workspaces=JSON.parse(JSON.stringify(DEFAULT_WS));
+  }
+  // Always record who is logged in
+  if(currentUser && currentUser !== 'local'){
+    localStorage.setItem('aztodo_active_user', currentUser);
+  }
+
+  // Update avatar button
   if(currentUser && currentUser !== 'local'){
     const initial = currentUser[0].toUpperCase();
     const btn = document.getElementById('userAvatarBtn');
@@ -846,7 +864,6 @@ function hideAuthOverlay(){
     const emailEl = document.getElementById('userEmailDisplay');
     if(emailEl) emailEl.textContent = currentUser;
   }
-  // init app after auth
   if(typeof initApp === 'function') initApp();
 }
 
@@ -2994,10 +3011,13 @@ function renderCalendar(ca){
   document.getElementById('qmTitle')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('qmSave').click();if(e.key==='Escape'){S.quickMeeting=null;render();}});
 }
 
-document.getElementById('toolLogout')?.addEventListener('click',()=>{
-  document.getElementById('toolsMenu').classList.remove('open');
+// Sign out from account icon dropdown
+document.getElementById('avatarSignOut')?.addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('userDropdown').style.display = 'none';
   if(!confirm('Sign out?')) return;
   localStorage.removeItem('aztodo_token');
+  localStorage.removeItem('aztodo_active_user');
   currentUser = null;
   showAuthOverlay('login');
 });
