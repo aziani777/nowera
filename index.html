@@ -589,7 +589,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         </div>
       </div>
       <div class="tools-wrap">
-        <button class="btn-icon" id="toolsBtn" title="Tools">⚙</button>
+        <button class="btn-icon" id="toolsBtn" title="Tools" style="width:36px;height:36px;font-size:18px;">⚙</button>
         <div class="tools-menu" id="toolsMenu">
           <button class="tools-item" id="toolPomodoro">🍅 Pomodoro timer</button>
           <button class="tools-item" id="toolSpaces">🗂 Manage spaces</button>
@@ -697,6 +697,39 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="btn-cancel" id="confirmMtgNo" style="flex:1">Cancel</button>
       <button class="btn-confirm-del" id="confirmMtgYes">Delete</button>
     </div>
+  </div>
+</div>
+
+<!-- Meeting Edit Modal -->
+<div class="overlay" id="mtgEditOverlay" style="display:none;z-index:3000;">
+  <div style="background:var(--surface);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);width:100%;max-width:440px;padding:24px;animation:fadeIn .2s ease;position:relative;max-height:90vh;overflow-y:auto;">
+    <div style="font-size:18px;font-weight:700;margin-bottom:18px;" id="mtgEditTitle">Edit Meeting</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <input id="mtgEditName" class="form-input" placeholder="Meeting title" style="font-size:15px;" />
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="mtgEditDate" type="date" class="form-input" style="flex:1;min-width:130px;" />
+        <div style="display:flex;align-items:center;gap:4px;">
+          <select id="mtgEditHour" class="form-input" style="width:70px;padding:8px 6px;">
+            <option value="">HH</option>
+            ${Array.from({length:24},(_,i)=>`<option value="${String(i).padStart(2,'0')}">${String(i).padStart(2,'0')}</option>`).join('')}
+          </select>
+          <span style="color:var(--text3);font-weight:700;">:</span>
+          <select id="mtgEditMin" class="form-input" style="width:70px;padding:8px 6px;">
+            <option value="">MM</option>
+            ${['00','15','30','45'].map(m=>`<option value="${m}">${m}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <select id="mtgEditSection" class="form-input"></select>
+      <input id="mtgEditNotes" class="form-input" placeholder="Notes (optional)" />
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px;">
+      <button id="mtgEditDelete" style="padding:10px 16px;border-radius:10px;border:none;background:var(--danger-soft);color:var(--danger);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">🗑 Delete</button>
+      <div style="flex:1;"></div>
+      <button id="mtgEditCancel" style="padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:none;color:var(--text2);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button id="mtgEditSave" style="padding:10px 20px;border-radius:10px;border:none;background:var(--accent);color:white;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">Save</button>
+    </div>
+    <div id="mtgEditSpinner" style="display:none;font-size:12px;color:var(--text3);margin-top:8px;text-align:center;">Syncing with Google Calendar…</div>
   </div>
 </div>
 
@@ -2187,12 +2220,10 @@ function buildListView(secs,isSingle){
     todos.push(...st);
   });
 
-  if(!todos.length) return `<div class="empty-state" style="padding:32px 0;text-align:center;">${t('noTasks')}</div>`;
+  // Add task button section (use first/only workspace section)
+  const lvSec = secs[0] || (S.workspaces[0]?.id);
 
-  const wsHeader=isSingle?'':`<th style="width:24px;"></th>`;
-  const wsLabel=isSingle?'':`<th>${SECS[secs[0]]?.label||''}</th>`;
-
-  return `<div style="overflow-x:auto;">
+  const tableHtml = todos.length ? `<div style="overflow-x:auto;">
   <table class="list-view-table">
     <thead>
       <tr>
@@ -2211,7 +2242,6 @@ function buildListView(secs,isSingle){
         const pri=t.priority||'medium';
         const lc=getLabelColor(t.label);
         const info=SECS[t.section]||{color:'var(--text3)',label:t.section,tag:'tag-pro'};
-        const priColors={high:'var(--danger)',medium:'var(--warning)',low:'var(--accent)'};
         return `<tr data-id="${t.id}" class="${t.done?'done-row':''}">
           <td><input type="checkbox" ${t.done?'checked':''} class="lv-check" data-id="${t.id}" onclick="event.stopPropagation()" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);"></td>
           ${!isSingle?`<td><span class="lv-ws-dot" style="background:${info.color};"></span></td>`:''}
@@ -2223,7 +2253,31 @@ function buildListView(secs,isSingle){
         </tr>`;
       }).join('')}
     </tbody>
-  </table></div>`;
+  </table></div>` : `<div class="empty-state" style="padding:32px 0;text-align:center;">${t('noTasks')}</div>`;
+
+  // Inline add form for list view
+  const ist=S.inlineState[lvSec]||{};
+  let addHtml='';
+  if(S.inlineOpen===('lv_'+lvSec)){
+    const dp=ist.pri||'medium';
+    const dd=ist.date||todayStr();
+    const dr=ist.recur||'';
+    addHtml=`<div class="inline-input-wrap" style="border-radius:var(--radius-lg);margin-top:8px;">
+      <input id="ii_lv_${lvSec}" class="inline-text-input" placeholder="${t('addTask')}" value="${esc(ist.text||'')}" />
+      <div class="inline-controls">
+        <button class="pri-box low${dp==='low'?' sel':''}" data-pri="low" data-sec="lv_${lvSec}">Low</button>
+        <button class="pri-box medium${dp==='medium'?' sel':''}" data-pri="medium" data-sec="lv_${lvSec}">Med</button>
+        <button class="pri-box high${dp==='high'?' sel':''}" data-pri="high" data-sec="lv_${lvSec}">High</button>
+        <button class="inline-date-btn${dd?' has-date':''}" id="idb_lv_${lvSec}">${dd?fmtDate(dd):t('pickDate')}</button>
+        <button id="isave_lv_${lvSec}" class="inline-save">${t('save')}</button>
+        <button id="icancel_lv_${lvSec}" class="inline-cancel">×</button>
+      </div>
+    </div>`;
+  } else {
+    addHtml=`<div class="inline-add lv-inline-add" data-lvsec="${lvSec}" style="border-radius:var(--radius-lg);margin-top:8px;"><div class="add-plus">+</div><span class="add-prompt">${t('addTask')}</span></div>`;
+  }
+
+  return tableHtml + addHtml;
 }
 
 function bindListViewEvents(ca){
@@ -2235,6 +2289,85 @@ function bindListViewEvents(ca){
   });
   ca.querySelectorAll('.lv-edit-btn').forEach(btn=>{
     btn.addEventListener('click',()=>openEditModal(btn.dataset.id));
+  });
+
+  // Inline add for list view
+  ca.querySelectorAll('.lv-inline-add').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const sec=el.dataset.lvsec;
+      S.inlineOpen='lv_'+sec;
+      if(!S.inlineState[sec]) S.inlineState[sec]={pri:'medium',date:todayStr(),text:'',kanbanCol:'todo'};
+      render();
+      setTimeout(()=>document.getElementById('ii_lv_'+sec)?.focus(),50);
+    });
+  });
+
+  // Pri box
+  ca.querySelectorAll('.pri-box[data-sec^="lv_"]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const sec=btn.dataset.sec.replace('lv_','');
+      if(!S.inlineState[sec])S.inlineState[sec]={};
+      S.inlineState[sec].pri=btn.dataset.pri;
+      render();
+      setTimeout(()=>document.getElementById('ii_lv_'+sec)?.focus(),50);
+    });
+  });
+
+  // Date picker
+  ca.querySelectorAll('[id^="idb_lv_"]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const sec=btn.id.replace('idb_lv_','');
+      showMiniCal(btn, d=>{
+        if(!S.inlineState[sec])S.inlineState[sec]={};
+        S.inlineState[sec].date=d;
+        render();
+        setTimeout(()=>document.getElementById('ii_lv_'+sec)?.focus(),50);
+      });
+    });
+  });
+
+  // Save
+  ca.querySelectorAll('[id^="isave_lv_"]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const sec=btn.id.replace('isave_lv_','');
+      const inp=document.getElementById('ii_lv_'+sec);
+      const text=(inp?.value||'').trim();
+      if(!text)return;
+      const ist=S.inlineState[sec]||{};
+      S.todos.push({id:uid(),text,section:sec,priority:ist.pri||'medium',due:ist.date||'',done:false,createdAt:new Date().toISOString(),subtasks:[],label:'',note:'',link:'',recur:ist.recur||'',kanbanCol:ist.kanbanCol||'todo'});
+      S.inlineState[sec]={pri:'medium',date:todayStr(),text:'',kanbanCol:'todo'};
+      S.inlineOpen=null;
+      save(); render();
+    });
+  });
+
+  // Cancel
+  ca.querySelectorAll('[id^="icancel_lv_"]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      S.inlineOpen=null; render();
+    });
+  });
+
+  // Enter key in input
+  ca.querySelectorAll('[id^="ii_lv_"]').forEach(inp=>{
+    const sec=inp.id.replace('ii_lv_','');
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){
+        const text=inp.value.trim();
+        if(!text)return;
+        const ist=S.inlineState[sec]||{};
+        S.todos.push({id:uid(),text,section:sec,priority:ist.pri||'medium',due:ist.date||'',done:false,createdAt:new Date().toISOString(),subtasks:[],label:'',note:'',link:'',recur:ist.recur||'',kanbanCol:ist.kanbanCol||'todo'});
+        S.inlineState[sec]={pri:'medium',date:todayStr(),text:'',kanbanCol:'todo'};
+        S.inlineOpen=null;
+        save(); render();
+      }
+      if(e.key==='Escape'){ S.inlineOpen=null; render(); }
+    });
+    inp.addEventListener('input',()=>{
+      if(!S.inlineState[sec])S.inlineState[sec]={};
+      S.inlineState[sec].text=inp.value;
+    });
   });
 }
 
@@ -2429,7 +2562,7 @@ function bindTodoEvents(ca,secs){
       const id=btn.dataset.id;
       const t=S.todos.find(x=>x.id===id);
       if(!t)return;
-      pendingDeleteId=id;
+      pendingDelId=id;
       document.getElementById('confirmMsg').textContent=`"${t.text.slice(0,60)}"`;
       document.getElementById('confirmOverlay').classList.add('open');
     });
@@ -2634,8 +2767,7 @@ function renderWeek(ca){
       h+=`<div class="week-empty">—</div>`;
     }
     dayMtgs.forEach(m=>{
-      const info=SECS[m.section]||{dot:'',color:'var(--text3)'};
-      h+=`<div class="week-mtg"><div class="week-mtg-time">${m.time||'--:--'}</div><div style="flex:1;font-size:12px;line-height:1.3;">${esc(m.title)}</div></div>`;
+      h+=`<div class="week-mtg" data-mtgid="${m.id}" style="cursor:pointer;"><div class="week-mtg-time">${m.time||'--:--'}</div><div style="flex:1;font-size:12px;line-height:1.3;">${esc(m.title)}</div><button class="meeting-del" data-id="${m.id}" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0 2px;flex-shrink:0;" onclick="event.stopPropagation()">×</button></div>`;
     });
     dayTodos.forEach(t=>{
       const info=SECS[t.section]||{color:'var(--text3)'};
@@ -2646,6 +2778,7 @@ function renderWeek(ca){
         <span class="pri-badge pri-badge-${t.priority||'medium'}" style="font-size:9px;padding:1px 4px;">${cap(t.priority||'medium')[0]}</span>
       </div>`;
     });
+    h+=`<div class="week-add-btn" data-date="${ds}" style="display:flex;align-items:center;gap:4px;padding:6px 8px;margin:4px 6px;border-radius:8px;cursor:pointer;font-size:11px;color:var(--text3);border:1px dashed var(--border2);transition:all .15s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">+ Meeting</div>`;
     h+=`</div>`;
   });
   h+=`</div></div>`;
@@ -2657,6 +2790,21 @@ function renderWeek(ca){
     el.addEventListener('click',()=>openEditModal(el.dataset.id));
     el.addEventListener('contextmenu',e=>{e.preventDefault();showCtx({clientX:e.clientX,clientY:e.clientY},el.dataset.id);});
     addLongPress(el,coords=>{el.dataset.lp='1';showCtx(coords,el.dataset.id);});
+  });
+  // Week meeting click → edit
+  ca.querySelectorAll('.week-mtg[data-mtgid]').forEach(el=>{
+    el.addEventListener('click',()=>openMtgModal(el.dataset.mtgid));
+  });
+  // Week meeting delete
+  ca.querySelectorAll('.week-mtg .meeting-del').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();pendingMtgId=btn.dataset.id;document.getElementById('confirmMtgOverlay').classList.add('open');});
+  });
+  // Week "+ Meeting" button
+  ca.querySelectorAll('.week-add-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      openMtgModal(null);
+      document.getElementById('mtgEditDate').value=btn.dataset.date;
+    });
   });
 }
 
@@ -2842,7 +2990,12 @@ document.getElementById('confirmOverlay').addEventListener('click',e=>{if(e.targ
 let pendingMtgId=null;
 document.getElementById('confirmMtgNo').addEventListener('click',()=>{document.getElementById('confirmMtgOverlay').classList.remove('open');pendingMtgId=null;});
 document.getElementById('confirmMtgYes').addEventListener('click',()=>{
-  if(pendingMtgId){S.meetings=S.meetings.filter(m=>m.id!==pendingMtgId);save();}
+  if(pendingMtgId){
+    const m=S.meetings.find(x=>x.id===pendingMtgId);
+    S.meetings=S.meetings.filter(x=>x.id!==pendingMtgId);
+    save();
+    if(m?.gcalId) gcalDelete(m.gcalId);
+  }
   document.getElementById('confirmMtgOverlay').classList.remove('open');pendingMtgId=null;render();
 });
 
@@ -2964,7 +3117,7 @@ function renderCalendar(ca){
   disp.forEach(m=>{
     const info=SECS[m.section]||{tag:'tag-pro',label:'?'};
     const cleanNotes=stripHtml(m.notes||'');
-    mp+=`<div class="meeting-item"><div class="meeting-time">${m.time||'--:--'}</div><div class="meeting-body"><div class="meeting-title">${esc(m.title)}</div><div class="meeting-sub"><span>${fmtDate(m.date)}</span>${cleanNotes?`<span>· ${esc(cleanNotes)}</span>`:''}<span class="tag ${info.tag}" style="padding:1px 6px;font-size:10px">${info.label}</span>${m.recur?`<span style="font-size:10px;color:var(--text3)">↻ ${cap(m.recur)}</span>`:''}</div></div><button class="meeting-del" data-id="${m.id}">×</button></div>`;
+    mp+=`<div class="meeting-item" data-mtgid="${m.id}" style="cursor:pointer;"><div class="meeting-time">${m.time||'--:--'}</div><div class="meeting-body"><div class="meeting-title">${esc(m.title)}</div><div class="meeting-sub"><span>${fmtDate(m.date)}</span>${cleanNotes?`<span>· ${esc(cleanNotes)}</span>`:''}<span class="tag ${info.tag}" style="padding:1px 6px;font-size:10px">${info.label}</span>${m.recur?`<span style="font-size:10px;color:var(--text3)">↻ ${cap(m.recur)}</span>`:''}</div></div><button class="meeting-del" data-id="${m.id}">×</button></div>`;
   });
   mp+=`</div>`;
 
@@ -2983,7 +3136,10 @@ function renderCalendar(ca){
     day.addEventListener('dblclick',()=>{if(!day.dataset.date)return;S.calSelected=day.dataset.date;S.quickMeeting=day.dataset.date;render();setTimeout(()=>{const el=document.getElementById('qmTitle');if(el)el.focus();},30);});
   });
   document.getElementById('clearSel')?.addEventListener('click',()=>{S.calSelected=null;S.quickMeeting=null;render();});
-  ca.querySelectorAll('.meeting-del').forEach(btn=>{btn.addEventListener('click',()=>{pendingMtgId=btn.dataset.id;document.getElementById('confirmMtgOverlay').classList.add('open');});});
+  ca.querySelectorAll('.meeting-item[data-mtgid]').forEach(el=>{
+    el.addEventListener('click',e=>{if(!e.target.classList.contains('meeting-del'))openMtgModal(el.dataset.mtgid);});
+  });
+  ca.querySelectorAll('.meeting-del').forEach(btn=>{btn.addEventListener('click',e=>{e.stopPropagation();pendingMtgId=btn.dataset.id;document.getElementById('confirmMtgOverlay').classList.add('open');});});
   document.getElementById('confirmMtgOverlay').addEventListener('click',e=>{if(e.target.id==='confirmMtgOverlay'){document.getElementById('confirmMtgOverlay').classList.remove('open');pendingMtgId=null;}});
   document.getElementById('qmCancel')?.addEventListener('click',()=>{S.quickMeeting=null;render();});
   document.getElementById('qmSave')?.addEventListener('click',()=>{
@@ -2996,7 +3152,7 @@ function renderCalendar(ca){
     const recur=document.getElementById('qmRecur').value;
 
     // base meeting
-    S.meetings.push({id:uid(),title,date,time,section,notes,recur});
+    const newId=uid(); S.meetings.push({id:newId,title,date,time,section,notes,recur,gcalId:''});
 
     // spawn future occurrences (next 12 instances)
     if(recur==='weekly'||recur==='monthly'){
@@ -3009,9 +3165,110 @@ function renderCalendar(ca){
     }
 
     S.quickMeeting=null;save();render();
+    // Push to GCal
+    gcalCreate({title,date,time,notes}).then(gcalId=>{
+      if(gcalId){const base=S.meetings.find(x=>x.id===newId);if(base)base.gcalId=gcalId;save();}
+    });
   });
   document.getElementById('qmTitle')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('qmSave').click();if(e.key==='Escape'){S.quickMeeting=null;render();}});
 }
+
+// ── GCal push helpers ──────────────────────────────────────────────────────
+async function gcalCreate(meeting){
+  try{
+    const r=await fetch('/api/gcal',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'create',meeting})});
+    const d=await r.json();
+    return d.gcalId||null;
+  }catch(e){return null;}
+}
+async function gcalUpdate(gcalId,meeting){
+  if(!gcalId)return;
+  try{
+    await fetch('/api/gcal',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'update',gcalId,meeting})});
+  }catch(e){}
+}
+async function gcalDelete(gcalId){
+  if(!gcalId)return;
+  try{
+    await fetch('/api/gcal',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'delete',gcalId})});
+  }catch(e){}
+}
+
+// ── Meeting edit modal ──────────────────────────────────────────────────────
+let editingMtgId=null;
+function openMtgModal(id){
+  const m=id?S.meetings.find(x=>x.id===id):null;
+  editingMtgId=id||null;
+  const overlay=document.getElementById('mtgEditOverlay');
+  overlay.style.display='flex';
+  document.getElementById('mtgEditTitle').textContent=id?'Edit Meeting':'New Meeting';
+  document.getElementById('mtgEditName').value=m?.title||'';
+  document.getElementById('mtgEditDate').value=m?.date||todayStr();
+  document.getElementById('mtgEditHour').value=(m?.time||'').split(':')[0]||'';
+  document.getElementById('mtgEditMin').value=(m?.time||'').split(':')[1]||'';
+  document.getElementById('mtgEditNotes').value=m?.notes||'';
+  // Populate section dropdown
+  const sec=document.getElementById('mtgEditSection');
+  sec.innerHTML=(S.workspaces||DEFAULT_WS).map(ws=>`<option value="${ws.id}"${ws.id===(m?.section||S.workspaces[0]?.id)?'selected':''}>${esc(ws.label)}</option>`).join('');
+  document.getElementById('mtgEditDelete').style.display=id?'block':'none';
+  document.getElementById('mtgEditSpinner').style.display='none';
+  setTimeout(()=>document.getElementById('mtgEditName').focus(),50);
+}
+function closeMtgModal(){
+  document.getElementById('mtgEditOverlay').style.display='none';
+  editingMtgId=null;
+}
+document.getElementById('mtgEditOverlay').addEventListener('click',e=>{if(e.target.id==='mtgEditOverlay')closeMtgModal();});
+document.getElementById('mtgEditCancel').addEventListener('click',closeMtgModal);
+
+document.getElementById('mtgEditSave').addEventListener('click',async()=>{
+  const title=document.getElementById('mtgEditName').value.trim();
+  const date=document.getElementById('mtgEditDate').value;
+  if(!title||!date){document.getElementById('mtgEditName').focus();return;}
+  const h=document.getElementById('mtgEditHour').value,m=document.getElementById('mtgEditMin').value;
+  const time=(h&&m)?`${h}:${m}`:'';
+  const section=document.getElementById('mtgEditSection').value;
+  const notes=document.getElementById('mtgEditNotes').value.trim();
+  const spinner=document.getElementById('mtgEditSpinner');
+  spinner.style.display='block';
+
+  if(editingMtgId){
+    // Edit existing
+    const idx=S.meetings.findIndex(x=>x.id===editingMtgId);
+    if(idx>=0){
+      const old=S.meetings[idx];
+      S.meetings[idx]={...old,title,date,time,section,notes};
+      save();
+      gcalUpdate(old.gcalId,{title,date,time,notes}).then(()=>spinner.style.display='none');
+    }
+  } else {
+    // Create new
+    const newMtg={id:uid(),title,date,time,section,notes,recur:'',gcalId:''};
+    S.meetings.push(newMtg);
+    save();
+    gcalCreate({title,date,time,notes}).then(gcalId=>{
+      if(gcalId){const m=S.meetings.find(x=>x.id===newMtg.id);if(m)m.gcalId=gcalId;save();}
+      spinner.style.display='none';
+    });
+  }
+  closeMtgModal();
+  render();
+});
+
+document.getElementById('mtgEditDelete').addEventListener('click',async()=>{
+  if(!editingMtgId)return;
+  const m=S.meetings.find(x=>x.id===editingMtgId);
+  if(!m)return;
+  if(!confirm(`Delete "${m.title}"?`))return;
+  S.meetings=S.meetings.filter(x=>x.id!==editingMtgId);
+  save();
+  if(m.gcalId) gcalDelete(m.gcalId);
+  closeMtgModal();
+  render();
+});
 
 // Sign out from account icon dropdown
 document.getElementById('avatarSignOut')?.addEventListener('click', e => {
