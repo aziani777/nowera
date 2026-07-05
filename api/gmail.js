@@ -75,8 +75,7 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 3000,
+        model: 'claude-haiku-4-5-20251001',        max_tokens: 3000,
         messages: [{
           role: 'user',
           content: `You are a smart email triage assistant. Classify each email as "task", "info", or "skip".
