@@ -83,9 +83,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @media(min-width:1280px){
   .cal-layout{grid-template-columns:480px 1fr;}
   .content-area.single-ws{max-width:600px;}
+  .content-area.single-ws.kanban-mode{max-width:100%;padding:16px 24px;}
   .week-grid{gap:10px;}
 }
-@media(min-width:1600px){.content-area.single-ws{max-width:680px;}}
+@media(min-width:1600px){.content-area.single-ws{max-width:680px;}.content-area.single-ws.kanban-mode{max-width:100%;}}
 
 /* TODOS GRID — horizontal scroll single row */
 .todos-grid{
@@ -158,7 +159,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .lv-ws-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0;}
 
 /* KANBAN CARDS (workspace kanban view) */
-.kanban-columns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start;}
+.kanban-columns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;align-items:start;width:100%;}
+@media(min-width:1400px){.kanban-columns{gap:24px;}}
 @media(max-width:900px){.kanban-columns{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:560px){.kanban-columns{grid-template-columns:1fr;}}
 .kanban-col{display:flex;flex-direction:column;gap:0;min-width:0;}
@@ -486,6 +488,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .toast-undo{margin-left:14px;background:transparent;border:1px solid rgba(255,255,255,.45);color:inherit;border-radius:6px;padding:2px 12px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
 .toast-undo:hover{background:rgba(255,255,255,.18);}
 
+/* LIST VIEW ROW DRAG */
+.list-view-table tr[draggable]{cursor:grab;}
+.list-view-table tr.dragging{opacity:.4;}
+.list-view-table tr.drag-over-top td{border-top:2px solid var(--accent);}
+.list-view-table tr.drag-over-bot td{border-bottom:2px solid var(--accent);}
+
 /* NAV TAB DRAG */
 .nav-tab.dragging{opacity:.4;}
 .nav-tab.drag-over-left{box-shadow:inset 3px 0 0 var(--accent);}
@@ -701,6 +709,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
     <div id="aiResult"></div>
     <div class="modal-actions">
+      <button class="btn-cancel" id="editDelete" style="color:var(--danger);border-color:var(--danger);margin-right:auto;">🗑 Delete</button>
       <button class="btn-cancel" id="editCancel">Cancel</button>
       <button class="btn-confirm" id="editSave">Save changes</button>
     </div>
@@ -1814,7 +1823,7 @@ function pomoStop(){
 function render(){
   closeCtx(); closeMiniCal();
   const ca=document.getElementById('contentArea');
-  ca.classList.remove('week-view','all-view','single-ws');
+  ca.classList.remove('week-view','all-view','single-ws','kanban-mode');
   if(S.tab==='calendar') renderCalendar(ca);
   else if(S.tab==='dashboard') renderDashboard(ca);
   else if(S.tab==='week') renderWeek(ca);
@@ -1822,7 +1831,11 @@ function render(){
   else if(S.tab==='all'){ca.classList.add('all-view');renderTodos(ca);}
   else {
     const ws=(S.workspaces||[]).find(w=>w.id===S.tab);
-    if(ws){ca.classList.add('single-ws');renderTodos(ca);}
+    if(ws){
+      ca.classList.add('single-ws');
+      ca.classList.toggle('kanban-mode',S.viewWs==='kanban');
+      renderTodos(ca);
+    }
     else renderDashboard(ca);
   }
 }
@@ -1910,6 +1923,43 @@ function renderWorkspaces(ca){
   // edit buttons
   let editingWsIdx=null;
   let editSelectedColor=null;
+  // drag & drop reordering of workspace rows
+  let wsDragIdx=null;
+  ca.querySelectorAll('.ws-row[data-wsi]').forEach(rowEl=>{
+    rowEl.draggable=true;
+    rowEl.style.cursor='grab';
+    rowEl.addEventListener('dragstart',e=>{
+      wsDragIdx=parseInt(rowEl.dataset.wsi);
+      e.dataTransfer.effectAllowed='move';
+      setTimeout(()=>rowEl.style.opacity='.4',0);
+    });
+    rowEl.addEventListener('dragend',()=>{
+      rowEl.style.opacity='';
+      ca.querySelectorAll('.ws-row').forEach(x=>{x.style.borderTop='';x.style.borderBottom='';});
+      wsDragIdx=null;
+    });
+    rowEl.addEventListener('dragover',e=>{
+      if(wsDragIdx===null||parseInt(rowEl.dataset.wsi)===wsDragIdx)return;
+      e.preventDefault();
+      const rect=rowEl.getBoundingClientRect();
+      ca.querySelectorAll('.ws-row').forEach(x=>{x.style.borderTop='';x.style.borderBottom='';});
+      if(e.clientY<rect.top+rect.height/2)rowEl.style.borderTop='2px solid var(--accent)';
+      else rowEl.style.borderBottom='2px solid var(--accent)';
+    });
+    rowEl.addEventListener('dragleave',()=>{rowEl.style.borderTop='';rowEl.style.borderBottom='';});
+    rowEl.addEventListener('drop',e=>{
+      e.preventDefault();
+      const ti0=parseInt(rowEl.dataset.wsi);
+      if(wsDragIdx===null||ti0===wsDragIdx)return;
+      const rect=rowEl.getBoundingClientRect();
+      const after=e.clientY>=rect.top+rect.height/2;
+      const[moved]=S.workspaces.splice(wsDragIdx,1);
+      let ti=ti0>wsDragIdx?ti0-1:ti0;
+      S.workspaces.splice(after?ti+1:ti,0,moved);
+      save();rebuildNav();render();
+    });
+  });
+
   ca.querySelectorAll('.btn-ws-edit').forEach(btn=>{
     btn.addEventListener('click',()=>{
       editingWsIdx=parseInt(btn.dataset.wsi);
@@ -2457,8 +2507,49 @@ function buildListView(secs,isSingle){
 }
 
 function bindListViewEvents(ca){
+  let lvDragId=null,lvDidDrag=false;
   ca.querySelectorAll('tbody tr[data-id]').forEach(row=>{
-    row.addEventListener('click',()=>openEditModal(row.dataset.id));
+    row.addEventListener('click',()=>{if(lvDidDrag){lvDidDrag=false;return;}openEditModal(row.dataset.id);});
+    // drag & drop reordering
+    row.draggable=true;
+    row.addEventListener('dragstart',e=>{
+      lvDragId=row.dataset.id;lvDidDrag=false;
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',lvDragId);
+      setTimeout(()=>row.classList.add('dragging'),0);
+    });
+    row.addEventListener('drag',()=>{lvDidDrag=true;});
+    row.addEventListener('dragend',()=>{
+      row.classList.remove('dragging');
+      ca.querySelectorAll('tbody tr').forEach(x=>x.classList.remove('drag-over-top','drag-over-bot'));
+      lvDragId=null;
+      setTimeout(()=>{lvDidDrag=false;},50);
+    });
+    row.addEventListener('dragover',e=>{
+      if(!lvDragId||row.dataset.id===lvDragId)return;
+      e.preventDefault();
+      const rect=row.getBoundingClientRect();
+      ca.querySelectorAll('tbody tr').forEach(x=>x.classList.remove('drag-over-top','drag-over-bot'));
+      row.classList.add(e.clientY<rect.top+rect.height/2?'drag-over-top':'drag-over-bot');
+    });
+    row.addEventListener('dragleave',()=>{row.classList.remove('drag-over-top','drag-over-bot');});
+    row.addEventListener('drop',e=>{
+      e.preventDefault();
+      row.classList.remove('drag-over-top','drag-over-bot');
+      if(!lvDragId||row.dataset.id===lvDragId)return;
+      const fi=S.todos.findIndex(x=>x.id===lvDragId);
+      let ti=S.todos.findIndex(x=>x.id===row.dataset.id);
+      if(fi<0||ti<0)return;
+      const rect=row.getBoundingClientRect();
+      const after=e.clientY>=rect.top+rect.height/2;
+      const[moved]=S.todos.splice(fi,1);
+      // dropping onto a row from another workspace moves the task there
+      const target=S.todos.find(x=>x.id===row.dataset.id);
+      if(target&&moved.section!==target.section)moved.section=target.section;
+      ti=S.todos.findIndex(x=>x.id===row.dataset.id);
+      S.todos.splice(after?ti+1:ti,0,moved);
+      save();render();
+    });
   });
   ca.querySelectorAll('.lv-check').forEach(cb=>{
     cb.addEventListener('change',()=>toggleDone(cb.dataset.id));
@@ -3096,6 +3187,10 @@ document.getElementById('btnAddSubtask').addEventListener('click',()=>{
 });
 
 document.getElementById('editCancel').addEventListener('click',()=>document.getElementById('editOverlay').classList.remove('open'));
+document.getElementById('editDelete').addEventListener('click',()=>{
+  document.getElementById('editOverlay').classList.remove('open');
+  if(editingId)confirmDelete(editingId);
+});
 document.getElementById('editOverlay').addEventListener('click',e=>{if(e.target.id==='editOverlay')document.getElementById('editOverlay').classList.remove('open');});
 document.querySelectorAll('#editPriRow .pri-box').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('#editPriRow .pri-box').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');});});
 document.getElementById('editSave').addEventListener('click',()=>{
@@ -3613,6 +3708,70 @@ function openWeeklyReview(){
     <button style="width:100%;margin-top:18px;padding:11px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" onclick="document.getElementById('reviewOverlay').remove()">${fr?'Fermer':'Close'}</button>
   </div>`;
 }
+
+/* ══ AI TASK ASSISTANT (bottom-left chat) ══ */
+(function(){
+  const fr=()=>S.lang==='fr';
+  const wrap=document.createElement('div');
+  wrap.innerHTML=`
+  <button id="aiChatBtn" title="AI assistant" style="position:fixed;bottom:20px;left:20px;z-index:8000;width:52px;height:52px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:22px;cursor:pointer;box-shadow:var(--shadow-lg);transition:transform .15s;">✨</button>
+  <div id="aiChatPanel" style="display:none;position:fixed;bottom:84px;left:20px;z-index:8001;width:min(360px,calc(100vw - 40px));background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden;flex-direction:column;">
+    <div style="padding:12px 16px;font-weight:700;font-size:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">✨ <span id="aiChatTitle">AI assistant</span><button id="aiChatClose" style="margin-left:auto;background:none;border:none;font-size:16px;cursor:pointer;color:var(--text3);">×</button></div>
+    <div id="aiChatMsgs" style="max-height:320px;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+    <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);">
+      <input id="aiChatInput" style="flex:1;border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);outline:none;" placeholder="">
+      <button id="aiChatSend" style="background:var(--accent);color:#fff;border:none;border-radius:9px;padding:0 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">➤</button>
+    </div>
+  </div>`;
+  document.body.appendChild(wrap);
+  const panel=document.getElementById('aiChatPanel'),msgs=document.getElementById('aiChatMsgs'),inp=document.getElementById('aiChatInput');
+  let history=[];
+  function bubble(text,who){
+    const b=document.createElement('div');
+    b.style.cssText=`max-width:85%;padding:8px 12px;border-radius:12px;line-height:1.4;white-space:pre-wrap;${who==='user'?'align-self:flex-end;background:var(--accent);color:#fff;':'align-self:flex-start;background:var(--surface2);color:var(--text);'}`;
+    b.textContent=text;msgs.appendChild(b);msgs.scrollTop=msgs.scrollHeight;
+    return b;
+  }
+  function openChat(){
+    panel.style.display='flex';
+    document.getElementById('aiChatTitle').textContent=fr()?'Assistant IA':'AI assistant';
+    inp.placeholder=fr()?'Ex: rappelle-moi de payer le loyer vendredi':'e.g. remind me to pay rent friday';
+    if(!msgs.children.length)bubble(fr()?'Décrivez vos tâches en langage naturel, je les crée pour vous.':'Describe your tasks in plain language and I will create them for you.','ai');
+    setTimeout(()=>inp.focus(),50);
+  }
+  document.getElementById('aiChatBtn').addEventListener('click',()=>{panel.style.display==='flex'?panel.style.display='none':openChat();});
+  document.getElementById('aiChatClose').addEventListener('click',()=>panel.style.display='none');
+  async function sendChat(){
+    const text=inp.value.trim();if(!text)return;
+    inp.value='';bubble(text,'user');
+    history.push({role:'user',content:text});
+    const thinking=bubble(fr()?'…réflexion':'…thinking','ai');
+    try{
+      const r=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({history:history.slice(-8),today:todayStr(),lang:S.lang,
+          workspaces:(S.workspaces||[]).map(w=>({id:w.id,label:w.label}))})});
+      const d=await r.json();
+      thinking.remove();
+      if(d.error){bubble('⚠ '+(typeof d.error==='string'?d.error:JSON.stringify(d.error)).slice(0,200),'ai');return;}
+      let added=0;
+      (d.tasks||[]).forEach(t=>{
+        if(!t.text)return;
+        const secOk=(S.workspaces||[]).some(w=>w.id===t.section);
+        S.todos.push({id:uid(),text:String(t.text).slice(0,200),section:secOk?t.section:(S.workspaces[0]?.id||'perso'),
+          priority:['low','medium','high'].includes(t.priority)?t.priority:'medium',
+          due:/^\d{4}-\d{2}-\d{2}$/.test(t.due||'')?t.due:'',done:false,createdAt:new Date().toISOString(),
+          subtasks:[],label:'',note:'',link:'',recur:['daily','weekly','monthly'].includes(t.recur)?t.recur:'',kanbanCol:'todo'});
+        added++;
+      });
+      if(added){save();render();}
+      const reply=(d.reply||'')+(added?`\n${added} ${fr()?(added>1?'tâches créées':'tâche créée'):(added>1?'tasks created':'task created')} ✓`:'');
+      bubble(reply.trim()||(fr()?'OK':'Done'),'ai');
+      history.push({role:'assistant',content:d.reply||''});
+    }catch(e){thinking.remove();bubble('⚠ '+e.message,'ai');}
+  }
+  document.getElementById('aiChatSend').addEventListener('click',sendChat);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();e.stopPropagation();});
+})();
 
 /* ══ PWA SERVICE WORKER ══ */
 if('serviceWorker' in navigator && location.protocol==='https:'){
