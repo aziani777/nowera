@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Nowera</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#f5f4f0">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -477,8 +481,34 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .digest-close{width:100%;margin-top:20px;padding:12px;border-radius:10px;border:none;background:var(--accent);color:white;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;}
 
 /* TOAST */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:10px 20px;border-radius:10px;font-size:14px;font-weight:500;z-index:9999;box-shadow:var(--shadow-lg);opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:10px 20px;border-radius:10px;font-size:14px;font-weight:500;z-index:9999;box-shadow:var(--shadow-lg);opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;display:flex;align-items:center;}
 .toast.show{opacity:1;}
+.toast-undo{margin-left:14px;background:transparent;border:1px solid rgba(255,255,255,.45);color:inherit;border-radius:6px;padding:2px 12px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.toast-undo:hover{background:rgba(255,255,255,.18);}
+
+/* NAV TAB DRAG */
+.nav-tab.dragging{opacity:.4;}
+.nav-tab.drag-over-left{box-shadow:inset 3px 0 0 var(--accent);}
+.nav-tab.drag-over-right{box-shadow:inset -3px 0 0 var(--accent);}
+
+/* TODAY FOCUS */
+.dash-focus{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px 10px;margin-bottom:18px;box-shadow:var(--shadow);}
+.dash-focus-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.dash-focus-empty{font-size:13px;color:var(--text3);padding:6px 0 10px;}
+.dash-check{width:18px;height:18px;border-radius:50%;border:2px solid var(--text3);flex:none;cursor:pointer;transition:all .12s;}
+.dash-check:hover{border-color:var(--accent);background:var(--accent-soft);}
+
+/* GLOBAL SEARCH */
+.search-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9000;display:none;align-items:flex-start;justify-content:center;padding-top:12vh;}
+.search-overlay.open{display:flex;}
+.search-box{background:var(--surface);border-radius:14px;box-shadow:var(--shadow-lg);width:min(560px,92vw);overflow:hidden;border:1px solid var(--border);}
+.search-input{width:100%;border:none;outline:none;background:transparent;padding:16px 18px;font-family:inherit;font-size:16px;color:var(--text);}
+.search-results{max-height:50vh;overflow:auto;border-top:1px solid var(--border);}
+.search-row{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:14px;color:var(--text);}
+.search-row:hover,.search-row.active{background:var(--surface2);}
+.search-row .tag{margin-left:auto;font-size:11px;flex:none;}
+.search-empty{padding:16px;color:var(--text3);font-size:13px;text-align:center;}
+.search-hint{padding:8px 16px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);display:flex;gap:14px;}
 
 /* NOTIF PERMISSION */
 .notif-bar{background:var(--purple-soft);border-bottom:1px solid var(--purple);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--purple);}
@@ -593,6 +623,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="tools-menu" id="toolsMenu">
           <button class="tools-item" id="toolPomodoro">🍅 Pomodoro timer</button>
           <button class="tools-item" id="toolSpaces">🗂 Manage spaces</button>
+          <button class="tools-item" id="toolReview">📊 Weekly review</button>
           <div class="tools-sep"></div>
           <button class="tools-item" id="toolLang">🌐 Langue / Language</button>
           <button class="tools-item" id="toolBackup">💾 Backups & restore</button>
@@ -1186,9 +1217,44 @@ function rebuildNav(){
       nav.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
       btn.classList.add('active');render();
     });
+    // drag & drop reordering of workspace tabs
+    btn.draggable=true;
+    btn.addEventListener('dragstart',e=>{
+      _navDragId=ws.id;
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain','ws:'+ws.id);
+      setTimeout(()=>btn.classList.add('dragging'),0);
+    });
+    btn.addEventListener('dragend',()=>{
+      _navDragId=null;
+      nav.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('dragging','drag-over-left','drag-over-right'));
+    });
+    btn.addEventListener('dragover',e=>{
+      if(!_navDragId||_navDragId===ws.id)return;
+      e.preventDefault();
+      const rect=btn.getBoundingClientRect();
+      const before=e.clientX<rect.left+rect.width/2;
+      btn.classList.toggle('drag-over-left',before);
+      btn.classList.toggle('drag-over-right',!before);
+    });
+    btn.addEventListener('dragleave',()=>{btn.classList.remove('drag-over-left','drag-over-right');});
+    btn.addEventListener('drop',e=>{
+      e.preventDefault();
+      btn.classList.remove('drag-over-left','drag-over-right');
+      if(!_navDragId||_navDragId===ws.id)return;
+      const fi=S.workspaces.findIndex(w=>w.id===_navDragId);
+      if(fi<0)return;
+      const rect=btn.getBoundingClientRect();
+      const before=e.clientX<rect.left+rect.width/2;
+      const[moved]=S.workspaces.splice(fi,1);
+      let ti=S.workspaces.findIndex(w=>w.id===ws.id);
+      S.workspaces.splice(before?ti:ti+1,0,moved);
+      save();rebuildNav();
+    });
     nav.insertBefore(btn,weekTab||calTab||null);
   });
 }
+let _navDragId=null;
 
 /* ══ THEME ══ */
 function applyTheme(){
@@ -1299,14 +1365,90 @@ function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return `${parseInt(
 function addDays(s,n){const d=new Date(s+' 00:00');d.setDate(d.getDate()+n);return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
 function addMonths(s,n){const d=new Date(s+' 00:00');d.setMonth(d.getMonth()+n);return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
 function isOv(due,done){if(!due||done)return false;const t=new Date();t.setHours(0,0,0,0);return new Date(due+' 00:00')<t;}
+
+/* ══ NATURAL LANGUAGE QUICK ADD ══
+   "call bank tomorrow !high #pro"  →  text:"call bank", due:tomorrow, priority:high, section:pro */
+function parseQuickAdd(raw){
+  let text=' '+raw+' ';
+  const out={priority:null,due:null,recur:null,section:null};
+  const eat=(re)=>{const m=text.match(re);if(m){text=text.replace(re,' ');return m;}return null;};
+  // priority
+  if(eat(/\s!(high|urgent|h)\b/i))out.priority='high';
+  else if(eat(/\s!(medium|med|m)\b/i))out.priority='medium';
+  else if(eat(/\s!(low|l)\b/i))out.priority='low';
+  // recurrence
+  if(eat(/\s(daily|every ?day|chaque jour|tous les jours)\b/i))out.recur='daily';
+  else if(eat(/\s(weekly|every ?week|chaque semaine|hebdo)\b/i))out.recur='weekly';
+  else if(eat(/\s(monthly|every ?month|chaque mois)\b/i))out.recur='monthly';
+  // date words
+  const fmtD=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+  if(eat(/\s(today|aujourd'?hui|auj)\b/i))out.due=todayStr();
+  else if(eat(/\s(tomorrow|tmr|demain)\b/i))out.due=tomorrowStr();
+  else{
+    // weekday names → next occurrence
+    const days={sunday:0,dimanche:0,monday:1,lundi:1,tuesday:2,mardi:2,wednesday:3,mercredi:3,thursday:4,jeudi:4,friday:5,vendredi:5,saturday:6,samedi:6};
+    for(const[name,dow]of Object.entries(days)){
+      const m=text.match(new RegExp('\\s('+name+')\\b','i'));
+      if(m){
+        const d=new Date();let diff=(dow-d.getDay()+7)%7;if(diff===0)diff=7;
+        d.setDate(d.getDate()+diff);out.due=fmtD(d);
+        text=text.replace(m[0],' ');break;
+      }
+    }
+    // DD/MM or DD-MM
+    if(!out.due){
+      const m=eat(/\s(\d{1,2})[\/\-](\d{1,2})(?![\/\-\d])\s/);
+      if(m){
+        const dd=parseInt(m[1]),mm=parseInt(m[2]);
+        if(dd>=1&&dd<=31&&mm>=1&&mm<=12){
+          const now=new Date();let d=new Date(now.getFullYear(),mm-1,dd);
+          const t0=new Date();t0.setHours(0,0,0,0);
+          if(d<t0)d=new Date(now.getFullYear()+1,mm-1,dd);
+          out.due=fmtD(d);
+        }
+      }
+    }
+  }
+  // #workspace
+  const hm=text.match(/\s#([\wÀ-ÿ-]+)/);
+  if(hm){
+    const q=hm[1].toLowerCase();
+    const ws=(S.workspaces||[]).find(w=>w.label.toLowerCase().startsWith(q)||w.id.toLowerCase().startsWith(q));
+    if(ws){out.section=ws.id;text=text.replace(hm[0],' ');}
+  }
+  out.text=text.replace(/\s+/g,' ').trim();
+  return out;
+}
+function buildQuickTodo(rawText,sec,ist){
+  ist=ist||{};
+  const p=parseQuickAdd(rawText);
+  return {id:uid(),text:p.text||rawText.trim(),section:p.section||sec,
+    priority:p.priority||ist.pri||'medium',due:p.due||ist.date||'',
+    done:false,createdAt:new Date().toISOString(),subtasks:[],label:'',note:'',link:'',
+    recur:p.recur||ist.recur||'',kanbanCol:ist.kanbanCol||'todo'};
+}
 function stripHtml(s){if(!s)return'';return s.replace(/<br\s*\/?>/gi,' ').replace(/<li>/gi,'• ').replace(/<\/li>/gi,' ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();}
 function getLabelColor(id){return COLOR_LABELS.find(c=>c.id===id)?.color||'';}
 
 /* ══ TOAST ══ */
-function toast(msg,dur=2800){
+function toast(msg,dur=2800,undoFn){
   const el=document.getElementById('toast');
-  el.textContent=msg; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),dur);
+  el.innerHTML='';
+  el.appendChild(document.createTextNode(msg));
+  if(undoFn){
+    const b=document.createElement('button');
+    b.className='toast-undo';
+    b.textContent=S.lang==='fr'?'Annuler':'Undo';
+    b.addEventListener('click',()=>{el.classList.remove('show');undoFn();});
+    el.appendChild(b);
+    el.style.pointerEvents='auto';
+    dur=Math.max(dur,5000);
+  }else{
+    el.style.pointerEvents='none';
+  }
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>el.classList.remove('show'),dur);
 }
 
 /* ══ CLOUD SYNC ══ */
@@ -1326,11 +1468,15 @@ function updateSyncLabel(){
   label.style.display='flex';
 }
 
+function authHeaders(){
+  const tk=localStorage.getItem('aztodo_token');
+  return tk?{'Content-Type':'application/json','Authorization':'Bearer '+tk}:{'Content-Type':'application/json'};
+}
 async function cloudPush(){
-  if(currentUser && currentUser !== MAIN_USER){ syncStatus(''); return; }
+  if(currentUser==='local'&&!localStorage.getItem('aztodo_token')){ syncStatus(''); return; }
   syncStatus('syncing');
   try{
-    const r=await fetch('/api/sync',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({todos:S.todos,meetings:S.meetings,theme:S.theme,filter:S.filter,workspaces:S.workspaces})});
+    const r=await fetch('/api/sync',{method:'PUT',headers:authHeaders(),body:JSON.stringify({todos:S.todos,meetings:S.meetings,theme:S.theme,filter:S.filter,workspaces:S.workspaces})});
     if(!r.ok)throw new Error(r.status);
     const now=new Date().toISOString();
     localStorage.setItem('aztodo_last_sync',now);
@@ -1339,11 +1485,11 @@ async function cloudPush(){
   }catch(e){syncStatus('');} // silent fail when running locally
 }
 async function cloudPull(){
-  // Only the main account uses cloud sync; others start blank
-  if(currentUser && currentUser !== MAIN_USER){ syncStatus(''); return; }
+  // Every signed-in account now has its own cloud storage
+  if(currentUser==='local'&&!localStorage.getItem('aztodo_token')){ syncStatus(''); return; }
   syncStatus('syncing');
   try{
-    const r=await fetch('/api/sync');
+    const r=await fetch('/api/sync',{headers:authHeaders()});
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
 
@@ -1836,6 +1982,21 @@ function dashTodoRow(t){
     </div>
   </div>`;
 }
+function dashFocusRow(t){
+  const info=SECS[t.section]||{tag:'tag-pro',label:t.section||'?',color:'var(--accent)'};
+  const ov=isOv(t.due,t.done);
+  const lc=getLabelColor(t.label);
+  return `<div class="dash-todo-row" data-id="${t.id}">
+    <span class="dash-check" data-did="${t.id}" title="${S.lang==='fr'?'Marquer comme terminée':'Mark as done'}"></span>
+    ${lc?`<span class="clabel" style="background:${lc}"></span>`:''}
+    <div class="dash-todo-text">${esc(t.text)}</div>
+    <div class="dash-todo-meta">
+      ${t.due?`<span class="todo-date${ov?' ov':''}">${fmtDate(t.due)}</span>`:''}
+      <span class="tag ${info.tag}" style="font-size:11px">${info.label}</span>
+      <span class="pri-badge pri-badge-${t.priority||'medium'}">${cap(t.priority||'medium')}</span>
+    </div>
+  </div>`;
+}
 /* ══════════════════════════════════════
    INTEGRATIONS — Gmail + Google Calendar
 ══════════════════════════════════════ */
@@ -2102,7 +2263,18 @@ function renderDashboard(ca){
   const todayMtgs=S.meetings.filter(m=>m.date===today).sort((a,b)=>a.time.localeCompare(b.time));
   const upcomingMtgs=S.meetings.filter(m=>m.date>today).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)).slice(0,5);
 
-  let h=`<div class="dash-grid">
+  // Today Focus: overdue first, then due today, sorted by priority
+  const priRank={high:0,medium:1,low:2};
+  const focus=[...overdue,...dueToday.filter(t=>!overdue.includes(t))]
+    .sort((a,b)=>(priRank[a.priority]??1)-(priRank[b.priority]??1));
+
+  let h=`<div class="dash-focus">
+    <div class="dash-focus-title">🎯 ${S.lang==='fr'?"Aujourd'hui":'Today'} <span class="count-badge">${focus.length}</span></div>`;
+  if(!focus.length) h+=`<div class="dash-focus-empty">🎉 ${S.lang==='fr'?'Rien d’urgent pour aujourd’hui':'All clear for today'}</div>`;
+  else focus.forEach(t=>{h+=dashFocusRow(t);});
+  h+=`</div>`;
+
+  h+=`<div class="dash-grid">
     <div class="stat-card blue"><div class="stat-label">${t('activeTasks')}</div><div class="stat-value">${active.length}</div><div class="stat-sub">${t('allSections')}</div></div>
     <div class="stat-card amber"><div class="stat-label">${t('dueToday')}</div><div class="stat-value">${dueToday.length}</div><div class="stat-sub">${fmtDate(today)}</div></div>
     <div class="stat-card"><div class="stat-label">${t('dueTomorrow')}</div><div class="stat-value">${dueTomorrow.length}</div><div class="stat-sub">${fmtDate(tomorrow)}</div></div>
@@ -2129,9 +2301,13 @@ function renderDashboard(ca){
   }
 
   ca.innerHTML=h;
-  // inject integrations panel at top
-  ca.insertAdjacentHTML('afterbegin', buildIntegrationsPanel());
+  // integrations panel at the bottom (logs are secondary to the work itself)
+  ca.insertAdjacentHTML('beforeend', buildIntegrationsPanel());
   bindIntegrationPanel(ca);
+  // quick-complete checkboxes in Today Focus
+  ca.querySelectorAll('.dash-check').forEach(c=>{
+    c.addEventListener('click',e=>{e.stopPropagation();toggleDone(c.dataset.did);});
+  });
   ca.querySelectorAll('.acc-header').forEach(hdr=>{
     hdr.addEventListener('click',()=>{
       const id=hdr.closest('.acc-wrap').dataset.acc;
@@ -2335,7 +2511,7 @@ function bindListViewEvents(ca){
       const text=(inp?.value||'').trim();
       if(!text)return;
       const ist=S.inlineState[sec]||{};
-      S.todos.push({id:uid(),text,section:sec,priority:ist.pri||'medium',due:ist.date||'',done:false,createdAt:new Date().toISOString(),subtasks:[],label:'',note:'',link:'',recur:ist.recur||'',kanbanCol:ist.kanbanCol||'todo'});
+      S.todos.push(buildQuickTodo(text,sec,ist));
       S.inlineState[sec]={pri:'medium',date:todayStr(),text:'',kanbanCol:'todo'};
       S.inlineOpen=null;
       save(); render();
@@ -2357,7 +2533,7 @@ function bindListViewEvents(ca){
         const text=inp.value.trim();
         if(!text)return;
         const ist=S.inlineState[sec]||{};
-        S.todos.push({id:uid(),text,section:sec,priority:ist.pri||'medium',due:ist.date||'',done:false,createdAt:new Date().toISOString(),subtasks:[],label:'',note:'',link:'',recur:ist.recur||'',kanbanCol:ist.kanbanCol||'todo'});
+        S.todos.push(buildQuickTodo(text,sec,ist));
         S.inlineState[sec]={pri:'medium',date:todayStr(),text:'',kanbanCol:'todo'};
         S.inlineOpen=null;
         save(); render();
@@ -2458,7 +2634,10 @@ function bindKanbanEvents(ca,sec){
       const todo=S.todos.find(t=>t.id===dragKanbanId);
       if(!todo) return;
       todo.kanbanCol=targetCol;
-      todo.done=(targetCol==='done');
+      const nowDone=(targetCol==='done');
+      if(nowDone&&!todo.done)todo.doneAt=new Date().toISOString();
+      if(!nowDone)delete todo.doneAt;
+      todo.done=nowDone;
       save(); render();
     });
   });
@@ -2678,7 +2857,7 @@ function bindTodoEvents(ca,secs){
       if(text){
         const st=S.inlineState[sec]||{};
         const recurVal=document.getElementById('irec_'+sec)?.value||'';
-        S.todos.push({id:uid(),text,section:sec,priority:st.pri||'medium',due:st.date||null,done:false,note:'',link:'',label:'',recur:recurVal,subtasks:[],kanbanCol:st.kanbanCol||'todo',created:new Date().toISOString()});
+        S.todos.push(buildQuickTodo(text,sec,{pri:st.pri,date:st.date,recur:recurVal,kanbanCol:st.kanbanCol}));
         save();
       }
       S.inlineOpen=null;delete S.inlineState[sec];render();
@@ -2718,10 +2897,16 @@ function bindTodoEvents(ca,secs){
 function toggleDone(id){
   const t=S.todos.find(x=>x.id===id);
   if(t){
+    const wasDone=t.done,wasCol=t.kanbanCol,wasDoneAt=t.doneAt;
     t.done=!t.done;
-    if(t.done) t.kanbanCol='done';
-    else if(t.kanbanCol==='done') t.kanbanCol='todo';
+    if(t.done){t.kanbanCol='done';t.doneAt=new Date().toISOString();}
+    else{if(t.kanbanCol==='done')t.kanbanCol='todo';delete t.doneAt;}
     save();render();
+    if(t.done&&!wasDone){
+      toast(S.lang==='fr'?'✓ Tâche terminée':'✓ Task completed',2800,()=>{
+        t.done=wasDone;t.kanbanCol=wasCol;t.doneAt=wasDoneAt;if(!wasDoneAt)delete t.doneAt;save();render();
+      });
+    }
   }
 }
 
@@ -2982,7 +3167,16 @@ function confirmDelete(id){
 }
 document.getElementById('confirmNo').addEventListener('click',()=>{document.getElementById('confirmOverlay').classList.remove('open');pendingDelId=null;});
 document.getElementById('confirmYes').addEventListener('click',()=>{
-  if(pendingDelId){S.todos=S.todos.filter(x=>x.id!==pendingDelId);save();}
+  if(pendingDelId){
+    const idx=S.todos.findIndex(x=>x.id===pendingDelId);
+    if(idx>=0){
+      const removed=S.todos[idx];
+      S.todos.splice(idx,1);save();
+      toast(S.lang==='fr'?'🗑 Tâche supprimée':'🗑 Task deleted',2800,()=>{
+        S.todos.splice(Math.min(idx,S.todos.length),0,removed);save();render();
+      });
+    }
+  }
   document.getElementById('confirmOverlay').classList.remove('open');pendingDelId=null;render();
 });
 document.getElementById('confirmOverlay').addEventListener('click',e=>{if(e.target.id==='confirmOverlay'){document.getElementById('confirmOverlay').classList.remove('open');pendingDelId=null;}});
@@ -3280,6 +3474,150 @@ document.getElementById('avatarSignOut')?.addEventListener('click', e => {
   currentUser = null;
   showAuthOverlay('login');
 });
+
+/* ══ GLOBAL SEARCH (Cmd/Ctrl+K) ══ */
+(function(){
+  const ov=document.createElement('div');
+  ov.className='search-overlay';ov.id='searchOverlay';
+  ov.innerHTML=`<div class="search-box">
+    <input class="search-input" id="searchInput" type="text" placeholder="${'Search tasks & meetings…'}" autocomplete="off">
+    <div class="search-results" id="searchResults"></div>
+    <div class="search-hint"><span>↑↓ navigate</span><span>↵ open</span><span>esc close</span></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)closeSearch();});
+})();
+let _searchIdx=0,_searchItems=[];
+function openSearch(){
+  const ov=document.getElementById('searchOverlay');
+  const inp=document.getElementById('searchInput');
+  inp.placeholder=S.lang==='fr'?'Rechercher tâches et réunions…':'Search tasks & meetings…';
+  ov.classList.add('open');
+  inp.value='';renderSearch('');
+  setTimeout(()=>inp.focus(),30);
+}
+function closeSearch(){document.getElementById('searchOverlay').classList.remove('open');}
+function renderSearch(q){
+  const box=document.getElementById('searchResults');
+  q=(q||'').toLowerCase().trim();
+  _searchItems=[];_searchIdx=0;
+  if(!q){box.innerHTML=`<div class="search-empty">${S.lang==='fr'?'Tapez pour rechercher':'Type to search'}</div>`;return;}
+  const hitT=S.todos.filter(t=>(t.text+' '+(t.note||'')+' '+(t.label||'')).toLowerCase().includes(q)).slice(0,12);
+  const hitM=S.meetings.filter(m=>(m.title+' '+(m.notes||'')).toLowerCase().includes(q)).slice(0,6);
+  let h='';
+  hitT.forEach(t=>{
+    const info=SECS[t.section]||{tag:'tag-pro',label:t.section||'?'};
+    _searchItems.push({type:'todo',id:t.id});
+    h+=`<div class="search-row" data-i="${_searchItems.length-1}"><span>${t.done?'✅':'☐'}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.text)}</span>${t.due?`<span class="todo-date">${fmtDate(t.due)}</span>`:''}<span class="tag ${info.tag}">${info.label}</span></div>`;
+  });
+  hitM.forEach(m=>{
+    const info=SECS[m.section]||{tag:'tag-pro',label:'?'};
+    _searchItems.push({type:'mtg',id:m.id,date:m.date});
+    h+=`<div class="search-row" data-i="${_searchItems.length-1}"><span>📅</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.title)}</span><span class="todo-date">${fmtDate(m.date)}${m.time?' '+m.time:''}</span><span class="tag ${info.tag}">${info.label}</span></div>`;
+  });
+  box.innerHTML=h||`<div class="search-empty">${S.lang==='fr'?'Aucun résultat':'No results'}</div>`;
+  markSearchActive();
+  box.querySelectorAll('.search-row').forEach(r=>{
+    r.addEventListener('click',()=>openSearchItem(parseInt(r.dataset.i)));
+    r.addEventListener('mousemove',()=>{_searchIdx=parseInt(r.dataset.i);markSearchActive();});
+  });
+}
+function markSearchActive(){
+  document.querySelectorAll('#searchResults .search-row').forEach(r=>r.classList.toggle('active',parseInt(r.dataset.i)===_searchIdx));
+}
+function openSearchItem(i){
+  const it=_searchItems[i];if(!it)return;
+  closeSearch();
+  if(it.type==='todo'){openEditModal(it.id);}
+  else{
+    const d=new Date(it.date+' 00:00');
+    S.calMonth=d.getMonth();S.calYear=d.getFullYear();S.calSelected=it.date;S.tab='calendar';
+    document.querySelectorAll('.nav-tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='calendar'));
+    render();
+  }
+}
+document.addEventListener('input',e=>{if(e.target.id==='searchInput')renderSearch(e.target.value);});
+
+/* ══ KEYBOARD SHORTCUTS ══ */
+document.addEventListener('keydown',e=>{
+  const searchOpen=document.getElementById('searchOverlay').classList.contains('open');
+  // Cmd/Ctrl+K always toggles search
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){
+    e.preventDefault();searchOpen?closeSearch():openSearch();return;
+  }
+  if(searchOpen){
+    if(e.key==='Escape'){closeSearch();}
+    else if(e.key==='ArrowDown'){e.preventDefault();if(_searchIdx<_searchItems.length-1)_searchIdx++;markSearchActive();}
+    else if(e.key==='ArrowUp'){e.preventDefault();if(_searchIdx>0)_searchIdx--;markSearchActive();}
+    else if(e.key==='Enter'){e.preventDefault();openSearchItem(_searchIdx);}
+    return;
+  }
+  // ignore when typing in a field or with modifiers
+  const tag=(e.target.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable)return;
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.key==='/'){e.preventDefault();openSearch();return;}
+  if(e.key.toLowerCase()==='n'){
+    const add=document.querySelector('#contentArea .lv-inline-add, #contentArea .inline-add');
+    if(add){e.preventDefault();add.click();}
+    return;
+  }
+  // 1-9 → switch workspace tabs
+  if(/^[1-9]$/.test(e.key)){
+    const ws=(S.workspaces||[])[parseInt(e.key)-1];
+    if(ws){
+      const btn=document.querySelector(`.nav-tab[data-tab="${ws.id}"]`);
+      if(btn)btn.click();
+    }
+    return;
+  }
+  if(e.key==='0'){const d=document.querySelector('.nav-tab[data-tab="dashboard"]');if(d)d.click();}
+});
+
+/* ══ WEEKLY REVIEW ══ */
+document.getElementById('toolReview')?.addEventListener('click',()=>{
+  document.getElementById('toolsMenu').classList.remove('open');
+  openWeeklyReview();
+});
+function openWeeklyReview(){
+  const fr=S.lang==='fr';
+  const since=new Date(Date.now()-7*24*60*60*1000);
+  const doneWeek=S.todos.filter(t=>t.done&&t.doneAt&&new Date(t.doneAt)>=since);
+  const createdWeek=S.todos.filter(t=>{const c=t.createdAt||t.created;return c&&new Date(c)>=since;});
+  const overdue=S.todos.filter(t=>isOv(t.due,t.done));
+  const byWs={};
+  doneWeek.forEach(t=>{(byWs[t.section]=byWs[t.section]||[]).push(t);});
+  let list='';
+  Object.entries(byWs).forEach(([sec,items])=>{
+    const info=SECS[sec]||{label:sec,tag:'tag-pro'};
+    list+=`<div style="margin:12px 0 4px;font-weight:700;font-size:13px"><span class="tag ${info.tag}">${info.label}</span> <span style="color:var(--text3)">${items.length}</span></div>`;
+    items.forEach(t=>{list+=`<div style="font-size:13px;padding:3px 0;color:var(--text2)">✓ ${esc(t.text)}</div>`;});
+  });
+  if(!doneWeek.length)list=`<div style="font-size:13px;color:var(--text3);padding:8px 0">${fr?'Aucune tâche terminée cette semaine (le suivi commence maintenant)':'No tasks completed this week yet (tracking starts now)'}</div>`;
+  let ov=document.getElementById('reviewOverlay');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='reviewOverlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:8500;display:flex;align-items:center;justify-content:center;padding:20px;';
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML=`<div style="background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);width:min(520px,94vw);max-height:80vh;overflow:auto;padding:24px;border:1px solid var(--border)">
+    <div style="font-size:18px;font-weight:700;margin-bottom:14px">📊 ${fr?'Revue de la semaine':'Weekly review'}</div>
+    <div style="display:flex;gap:12px;margin-bottom:8px">
+      <div style="flex:1;background:var(--surface2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--success,#16a34a)">${doneWeek.length}</div><div style="font-size:12px;color:var(--text3)">${fr?'terminées':'completed'}</div></div>
+      <div style="flex:1;background:var(--surface2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--accent)">${createdWeek.length}</div><div style="font-size:12px;color:var(--text3)">${fr?'créées':'created'}</div></div>
+      <div style="flex:1;background:var(--surface2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--danger)">${overdue.length}</div><div style="font-size:12px;color:var(--text3)">${fr?'en retard':'overdue'}</div></div>
+    </div>
+    ${list}
+    <button style="width:100%;margin-top:18px;padding:11px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" onclick="document.getElementById('reviewOverlay').remove()">${fr?'Fermer':'Close'}</button>
+  </div>`;
+}
+
+/* ══ PWA SERVICE WORKER ══ */
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});
+}
 
 /* ══ INIT ══ */
 function initApp(){
