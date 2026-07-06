@@ -507,6 +507,20 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .dash-check{width:18px;height:18px;border-radius:50%;border:2px solid var(--text3);flex:none;cursor:pointer;transition:all .12s;}
 .dash-check:hover{border-color:var(--accent);background:var(--accent-soft);}
 
+/* AI CHAT FAB + PANEL */
+.ai-fab{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:8000;width:52px;height:52px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:22px;cursor:pointer;box-shadow:var(--shadow-lg);transition:transform .15s;}
+.ai-fab:hover{transform:translateX(-50%) scale(1.08);}
+.ai-panel{display:none;position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:8001;width:min(380px,calc(100vw - 40px));background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden;flex-direction:column;}
+@media(max-width:640px){
+  .ai-fab{left:auto;right:16px;transform:none;}
+  .ai-fab:hover{transform:scale(1.08);}
+  .ai-panel{left:auto;right:16px;transform:none;}
+}
+.ai-mic{background:var(--surface2);border:1px solid var(--border);border-radius:9px;width:40px;flex:none;font-size:16px;cursor:pointer;color:var(--text2);transition:all .15s;}
+.ai-mic:hover{border-color:var(--accent);color:var(--accent);}
+.ai-mic.listening{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);animation:aipulse 1s infinite;}
+@keyframes aipulse{50%{opacity:.45;}}
+
 /* GLOBAL SEARCH */
 .search-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9000;display:none;align-items:flex-start;justify-content:center;padding-top:12vh;}
 .search-overlay.open{display:flex;}
@@ -3723,12 +3737,13 @@ function openWeeklyReview(){
   const fr=()=>S.lang==='fr';
   const wrap=document.createElement('div');
   wrap.innerHTML=`
-  <button id="aiChatBtn" title="AI assistant" style="position:fixed;bottom:20px;left:20px;z-index:8000;width:52px;height:52px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:22px;cursor:pointer;box-shadow:var(--shadow-lg);transition:transform .15s;">✨</button>
-  <div id="aiChatPanel" style="display:none;position:fixed;bottom:84px;left:20px;z-index:8001;width:min(360px,calc(100vw - 40px));background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden;flex-direction:column;">
+  <button id="aiChatBtn" class="ai-fab" title="AI assistant">✨</button>
+  <div id="aiChatPanel" class="ai-panel">
     <div style="padding:12px 16px;font-weight:700;font-size:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">✨ <span id="aiChatTitle">AI assistant</span><button id="aiChatClose" style="margin-left:auto;background:none;border:none;font-size:16px;cursor:pointer;color:var(--text3);">×</button></div>
     <div id="aiChatMsgs" style="max-height:320px;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
     <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);">
-      <input id="aiChatInput" style="flex:1;border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);outline:none;" placeholder="">
+      <input id="aiChatInput" style="flex:1;min-width:0;border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);outline:none;" placeholder="">
+      <button id="aiChatMic" class="ai-mic" title="Dictate">🎤</button>
       <button id="aiChatSend" style="background:var(--accent);color:#fff;border:none;border-radius:9px;padding:0 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">➤</button>
     </div>
   </div>`;
@@ -3780,6 +3795,42 @@ function openWeeklyReview(){
   }
   document.getElementById('aiChatSend').addEventListener('click',sendChat);
   inp.addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();e.stopPropagation();});
+
+  /* Voice dictation → auto-create tasks */
+  const micBtn=document.getElementById('aiChatMic');
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){micBtn.style.display='none';}
+  else{
+    let rec=null,listening=false;
+    micBtn.addEventListener('click',()=>{
+      if(listening){try{rec.stop();}catch(e){}return;}
+      rec=new SR();
+      rec.lang=S.lang==='fr'?'fr-FR':'en-US';
+      rec.interimResults=true;
+      rec.continuous=false;
+      rec.maxAlternatives=1;
+      listening=true;
+      micBtn.classList.add('listening');
+      inp.value='';
+      inp.placeholder=fr()?'Parlez, je vous écoute…':'Speak, I\'m listening…';
+      rec.onresult=e=>{
+        let txt='';
+        for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;
+        inp.value=txt;
+      };
+      rec.onerror=e=>{
+        listening=false;micBtn.classList.remove('listening');
+        if(e.error==='not-allowed')bubble(fr()?'⚠ Autorisez le micro dans votre navigateur.':'⚠ Please allow microphone access.','ai');
+        else if(e.error!=='aborted'&&e.error!=='no-speech')bubble('⚠ '+e.error,'ai');
+      };
+      rec.onend=()=>{
+        listening=false;micBtn.classList.remove('listening');
+        inp.placeholder=fr()?'Ex: rappelle-moi de payer le loyer vendredi':'e.g. remind me to pay rent friday';
+        if(inp.value.trim())sendChat(); // auto-send → tasks created automatically
+      };
+      try{rec.start();}catch(e){listening=false;micBtn.classList.remove('listening');}
+    });
+  }
 })();
 
 /* ══ PWA SERVICE WORKER ══ */
